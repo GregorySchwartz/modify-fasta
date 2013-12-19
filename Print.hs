@@ -6,13 +6,33 @@
 
 module Print where
 
+-- Built-in
+import Data.List
+import qualified Data.Map as M
+
 -- Local
 import Types
 
--- Return the results of the diversity analysis in string form for saving
+-- Return the results of the filtration in string form for saving
 -- to a file
-printFasta :: [FastaSequence] -> String
-printFasta fastaList = body
+printFasta :: CloneMap -> String
+printFasta = body
   where
-    body             = unlines . map mapLine $ fastaList
-    mapLine x = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
+    body                = intercalate "\n"
+                        . map mapGerm
+                        . M.toAscList
+                        . M.map (intercalate "\n" . map mapClone)
+    mapGerm ((x, y), z) = ">>" ++ fastaInfo y ++ "\n" ++ fastaSeq y ++ "\n" ++ z
+    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
+
+-- Return the results of the filtration in string form for saving
+-- to a file and excluding germline
+printFastaNoGermline :: CloneMap -> String
+printFastaNoGermline = body
+  where
+    body                = intercalate "\n"
+                        . map mapGerm
+                        . M.toAscList
+                        . M.map (intercalate "\n" . map mapClone)
+    mapGerm ((x, y), z) = z
+    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
