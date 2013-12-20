@@ -23,7 +23,7 @@ printFasta = body
                         . M.toAscList
                         . M.map (intercalate "\n" . map mapClone)
     mapGerm ((x, y), z) = ">>" ++ fastaInfo y ++ "\n" ++ fastaSeq y ++ "\n" ++ z
-    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
+    mapClone x          = fastaInfo x ++ "\n" ++ fastaSeq x
 
 -- Return the results of the filtration in string form for saving
 -- to a file and excluding germline
@@ -35,4 +35,4 @@ printFastaNoGermline = body
                         . M.toAscList
                         . M.map (intercalate "\n" . map mapClone)
     mapGerm ((x, y), z) = z
-    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
+    mapClone x          = fastaInfo x ++ "\n" ++ fastaSeq x

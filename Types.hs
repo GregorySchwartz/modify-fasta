@@ -12,6 +12,7 @@ import qualified Data.Map as M
 data FastaSequence = FastaSequence { fastaInfo :: String
                                    , fastaSeq  :: String
                                    } deriving (Eq, Ord, Show)
+data GeneticUnit   = AminoAcid | Nucleotide
 
 -- Basic
 type ID         = Int

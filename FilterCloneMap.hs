@@ -35,10 +35,15 @@ removeCodonMutCount codonMut = M.mapWithKey mapRemove
     codonSplit                     = fullCodon . Split.chunksOf 3
     fullCodon                      = filter ((==3) . length)
 
-removeStopsCloneMap :: CloneMap -> CloneMap
-removeStopsCloneMap = M.map (filter filterStops)
+removeStopsCloneMap :: GeneticUnit -> Int -> CloneMap -> CloneMap
+removeStopsCloneMap genUnit stopRange = M.map (filter (filterStops genUnit))
   where
-    filterStops = not . elem '*' . translate . fastaSeq
+    filterStops Nucleotide = not
+                           . elem '*'
+                           . take stopRange
+                           . translate
+                           . fastaSeq
+    filterStops AminoAcid  = not . elem '*' . take stopRange . fastaSeq
 
 removeEmptyClone :: CloneMap -> CloneMap
 removeEmptyClone = M.filter (not . null)
