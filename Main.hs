@@ -91,8 +91,8 @@ filterCLIPFasta opts = do
                                     else cloneMap
     let cloneMapNoCodonMut    = if (codonMut > 0)
                                     then removeCodonMutCount
-                                         codonMut cloneMap
-                                    else cloneMap
+                                         codonMut cloneMapNoStops
+                                    else cloneMapNoStops
     let cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
 
     let outputString = if (removeGermlines opts)

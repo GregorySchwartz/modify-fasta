@@ -42,9 +42,10 @@ codon2aa x
     | codon `elem` ["GTT", "GTC", "GTA", "GTG"]               = 'V'
     | codon `elem` ["TAA", "TGA", "TAG"]                      = '*'
     | codon `elem` ["---", "..."]                             = '-'
-    | codon == "~~~"                                          = '~'
-    | 'N' `elem` codon                                        = '~'
-    | '-' `elem` codon                                        = '~'
+    | codon == "~~~"                                          = '-'
+    | 'N' `elem` codon                                        = '-'
+    | '-' `elem` codon                                        = '-'
+    | '.' `elem` codon                                        = '-'
     | otherwise                                               = error errorMsg
   where
     codon    = map toUpper x
