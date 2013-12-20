@@ -62,9 +62,9 @@ options = Options
          <> short 'c'
          <> metavar "[0]|1|2|3"
          <> value 0
-         <> help "Only include codons with this many mutations or more\
+         <> help "Only include codons with this many mutations or less\
                  \ (0 is the same as include all codons). Converts\
-                 \ the codon to " )
+                 \ the codon to gaps " )
       <*> strOption
           ( long "output"
          <> short 'o'
@@ -89,7 +89,11 @@ filterCLIPFasta opts = do
                                     then removeStopsCloneMap
                                          genUnit stopRange cloneMap
                                     else cloneMap
-    let cloneMapNoEmptyClones = removeEmptyClone cloneMapNoStops
+    let cloneMapNoCodonMut    = if (codonMut > 0)
+                                    then removeCodonMutCount
+                                         codonMut cloneMap
+                                    else cloneMap
+    let cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
 
     let outputString = if (removeGermlines opts)
                            then  printFastaNoGermline cloneMapNoEmptyClones
