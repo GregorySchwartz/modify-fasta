@@ -14,14 +14,16 @@ import FilterCloneMap
 import Print
 
 -- Command line arguments
-data Options = Options { input           :: String
-                       , aminoAcids      :: GeneticUnit
-                       , removeN         :: Bool
-                       , removeGermlines :: Bool
-                       , removeStops     :: Bool
-                       , inputStopRange  :: Int
-                       , inputCodonMut   :: CodonMut
-                       , output          :: String
+data Options = Options { input             :: String
+                       , aminoAcids        :: GeneticUnit
+                       , removeN           :: Bool
+                       , removeGermlines   :: Bool
+                       , removeStops       :: Bool
+                       , inputStopRange    :: Int
+                       , inputCodonMut     :: CodonMut
+                       , inputCustomFilter :: String
+                       , inputCustomField  :: Int
+                       , output            :: String
                        }
 
 -- Command line options
@@ -64,7 +66,20 @@ options = Options
          <> value 0
          <> help "Only include codons with this many mutations or less\
                  \ (0 is the same as include all codons). Converts\
-                 \ the codon to gaps " )
+                 \ the codon to gaps" )
+      <*> strOption
+          ( long "inputCustomFilter"
+         <> short 'f'
+         <> metavar "FIELD VALUE (String)"
+         <> value ""
+         <> help "A custom field value to keep, discarding all others" )
+      <*> option
+          ( long "inputCustomField"
+         <> short 'F'
+         <> metavar "FIELD LOCATION (Int)"
+         <> value 0
+         <> help "The location of the field in inputCustomFilter\
+                 \ (split by |, 0 means search the whole header" )
       <*> strOption
           ( long "output"
          <> short 'o'
@@ -83,12 +98,21 @@ filterCLIPFasta opts = do
     let genUnit               = aminoAcids opts
     let stopRange             = inputStopRange opts
     let codonMut              = inputCodonMut opts
+    let customFilter          = inputCustomFilter opts
+    let customField           = inputCustomField opts
 
+    -- Initiate CloneMap
     let cloneMap              = generateCloneMap contents
+
+    -- Start filtering out sequences
+    let cloneMapCustom        = if (not . null $ customFilter)
+                                    then removeCustomFilter
+                                         customField customFilter cloneMap
+                                    else cloneMap
     let cloneMapNoStops       = if (removeStops opts)
                                     then removeStopsCloneMap
-                                         genUnit stopRange cloneMap
-                                    else cloneMap
+                                         genUnit stopRange cloneMapCustom
+                                    else cloneMapCustom
     let cloneMapNoCodonMut    = if (codonMut > 0)
                                     then removeCodonMutCount
                                          codonMut cloneMapNoStops
