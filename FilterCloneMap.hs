@@ -50,17 +50,41 @@ removeStopsCloneMap genUnit stopRange = M.map (filter (filterStops genUnit))
 
 -- Remove sequences that do not contain the string customFilter in the
 -- customField location, split by "|". Note that this is 1 indexed and
--- 0 means to search the entire header for the customFilter.
-removeCustomFilter :: Int -> String -> CloneMap -> CloneMap
-removeCustomFilter 0 customFilter = M.map (filter inField)
+-- 0 means to search the entire header for the customFilter. If the
+-- customRemove option is enabled, this function will instead remove
+-- sequences that have headers which match the custom filter, as opposed to
+-- the other way around (this is defined in the "equal" function). Also
+-- takes into account whether to filter on the germline versus the actual
+-- sequences.
+removeCustomFilter :: Bool
+                   -> Bool
+                   -> Bool
+                   -> Int
+                   -> String
+                   -> CloneMap
+                   -> CloneMap
+removeCustomFilter germ rm infixField customField customFilter
+    | germ && customField == 0 = M.filterWithKey (\(p, k) _ -> inField k)
+    | germ && customField > 0  = M.filterWithKey (\(p, k) _ -> inCustomField k) 
+    | customField == 0 = M.map (filter inField) 
+    | customField /= 0 = M.map (filter inCustomField)
   where
-    inField = isInfixOf customFilter . fastaInfo
-removeCustomFilter customField customFilter = M.map (filter inCustomField)
-  where
-    inCustomField x = isInfixOf customFilter
+    inField         = equal rm infixField customFilter . fastaInfo
+    inCustomField x = equal rm infixField customFilter
                     $ (Split.splitOn "|" . fastaInfo $ x) !! (customField - 1)
+    equal False False x = (==) x
+    equal False True x  = isInfixOf x
+    equal True False x  = (/=) x
+    equal True True x   = not . isInfixOf x
 
 -- Remove clones that do not have any sequences after the filtrations
 removeEmptyClone :: CloneMap -> CloneMap
 removeEmptyClone = M.filter (not . null)
 
+-- Convert sequences to amino acids
+convertToAminoAcidsCloneMap :: CloneMap -> CloneMap
+convertToAminoAcidsCloneMap = M.mapKeys keyMap
+                            . M.map (map translateFastaSequence)
+  where
+    keyMap (x, y) = (x, translateFastaSequence y)
+    translateFastaSequence x = x { fastaSeq = translate . fastaSeq $ x }

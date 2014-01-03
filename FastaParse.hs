@@ -6,6 +6,7 @@
 module FastaParse where
 
 -- Built in
+import Data.List
 import qualified Data.Map as M
 
 -- Cabal
@@ -74,3 +75,9 @@ generateCloneMap = M.fromList . assocList
                                                        , fastaSeq  = seq
                                                        }
                                        : (clones2FastaSequence xs)
+
+-- Adds filler germlines to normal fasta files
+addFillerGermlines :: String -> String
+addFillerGermlines = replace ">" ">>filler\n---\n>"
+  where
+    replace old new = intercalate new . Split.splitOn old
