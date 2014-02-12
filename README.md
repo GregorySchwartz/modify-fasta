@@ -1,7 +1,7 @@
 modify-fasta
 ============
 
-Modify Fasta, Gregory W. Schwartz
+**Gregory W. Schwartz**
 
 ```
 Usage: modify_fasta [-i|--input FILE] [-a|--aminoAcids] [-A|--normalFasta] [-C|--convertToAminoAcids] [-N|--removeN] [-g|--removeGermlines] [-h|--removeHighlyMutated] [-s|--removeStops] [-r|--inputStopRange [106]|INT] [-c|--inputCodonMut [-1]|0|1|2|3] [-T|--inputCodonMutType [=]|>|<] [-M|--inputMutType [All]|Silent|Replacement] [-f|--inputCustomFilter FIELD_VALUE (String)] [-F|--inputCustomField FIELD_LOCATION (Int)] [-I|--infixCustomFilter] [-G|--customGermline] [-m|--customRemove] [-o|--output FILE]
