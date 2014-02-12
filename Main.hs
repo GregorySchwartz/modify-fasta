@@ -20,9 +20,12 @@ data Options = Options { input               :: String
                        , convertToAminoAcids :: Bool
                        , removeN             :: Bool
                        , removeGermlines     :: Bool
+                       , removeHighlyMutated :: Bool
                        , removeStops         :: Bool
                        , inputStopRange      :: Int
                        , inputCodonMut       :: CodonMut
+                       , inputCodonMutType   :: String
+                       , inputMutType        :: String
                        , inputCustomFilter   :: String
                        , inputCustomField    :: Int
                        , infixCustomFilter   :: Bool
@@ -64,6 +67,11 @@ options = Options
          <> short 'g'
          <> help "Whether to remove germlines" )
       <*> switch
+          ( long "removeHighlyMutated"
+         <> short 'h'
+         <> help "Whether to remove highly mutated clone sequences (a third\
+                 \ of their sequence are different amino acids)" )
+      <*> switch
           ( long "removeStops"
          <> short 's'
          <> help "Whether to remove clone sequences with stop codons" )
@@ -77,11 +85,26 @@ options = Options
       <*> option
           ( long "inputCodonMut"
          <> short 'c'
-         <> metavar "[0]|1|2|3"
-         <> value 0
-         <> help "Only include codons with this many mutations or less\
-                 \ (0 is the same as include all codons). Converts\
-                 \ the codon to gaps" )
+         <> metavar "[-1]|0|1|2|3"
+         <> value (-1)
+         <> help "Only include codons with this many mutations or less or more,\
+                 \ depending on inputCodonMutType (-1 is the same as include\
+                 \ all codons). Converts the codon to gaps" )
+      <*> strOption
+          ( long "inputCodonMutType"
+         <> short 'T'
+         <> metavar "[=]|>|<"
+         <> value "="
+         <> help "Only include codons with this many mutations (=)\
+                 \ (or lesser (<) or greater (>), depending on\
+                 \ inputCodonMut). Converts the codon to gaps" )
+      <*> strOption
+          ( long "inputMutType"
+         <> short 'M'
+         <> metavar "[All]|Silent|Replacement"
+         <> value "All"
+         <> help "Only include codons with this all mutations (All),\
+                 \ (or silent (Silent) or replacement (Replacement)" )
       <*> strOption
           ( long "inputCustomFilter"
          <> short 'f'
@@ -135,6 +158,8 @@ filterCLIPFasta opts = do
     let genUnit               = aminoAcids opts
     let stopRange             = inputStopRange opts
     let codonMut              = inputCodonMut opts
+    let codonMutType          = inputCodonMutType opts
+    let mutType               = inputMutType opts
     let customFilter          = inputCustomFilter opts
     let customField           = inputCustomField opts
     let removeGermlinesFlag   = if (normalFasta opts)
@@ -160,11 +185,18 @@ filterCLIPFasta opts = do
                                     then removeStopsCloneMap
                                          genUnit stopRange cloneMapCustom
                                     else cloneMapCustom
+    -- Remove clones that are highly mutated
+    let cloneMapLowMutation   = if (removeHighlyMutated opts)
+                                    then filterHighlyMutated
+                                         genUnit cloneMapCustom
+                                    else cloneMapCustom
     -- Remove codons with codons with a certain number of mutations
-    let cloneMapNoCodonMut    = if (codonMut > 0)
-                                    then removeCodonMutCount
-                                         codonMut cloneMapNoStops
-                                    else cloneMapNoStops
+    let cloneMapNoCodonMut    = if (codonMut > -1)
+                                    then removeCodonMutCount codonMut
+                                                             codonMutType
+                                                             mutType
+                                                             cloneMapLowMutation
+                                    else cloneMapLowMutation
     -- Remove empty clones
     let cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
 

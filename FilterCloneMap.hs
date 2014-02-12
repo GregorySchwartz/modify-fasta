@@ -7,6 +7,7 @@ module FilterCloneMap where
 
 -- Built in
 import Data.List
+import Data.Char
 import qualified Data.Map as M
 
 -- Cabal
@@ -17,10 +18,38 @@ import Types
 import Diversity
 import Translation
 
+-- Remove highly mutated sequences (sequences with more than a third of
+-- their sequence being mutated).
+filterHighlyMutated :: GeneticUnit -> CloneMap -> CloneMap
+filterHighlyMutated genUnit = M.mapWithKey filterMutated
+  where
+    filterMutated k xs  = filter (not . isHighlyMutated (snd k)) xs
+    isHighlyMutated k x = ( (genericLength (readSeq genUnit . fastaSeq $ x)
+                           :: Double) / 3 )
+                       <= ( ( genericLength
+                            . realMutations (readSeq genUnit . fastaSeq $ k)
+                            $ readSeq genUnit . fastaSeq $ x) :: Double )
+    realMutations k x   = filterCodonMutStab (\(x, y) -> x /= y)
+                        . map snd
+                        . mutation k
+                        $ x
+    filterCodonMutStab isWhat = filter (filterRules isWhat)
+    filterRules isWhat x = isWhat x
+                        && not (inTuple '-' x)
+                        && not (inTuple '.' x)
+                        && not (inTuple '~' x)
+                        && not (inTuple 'N' x)
+    inTuple c (x, y)
+        | c == x || c == y = True
+        | otherwise        = False
+    mutation x y        = zip [1..] . zip x $ y
+    readSeq Nucleotide  = id
+    readSeq AminoAcid   = translate
+
 -- Replace codons that have more than CodonMut mutations (make them "---"
 -- codons).
-removeCodonMutCount :: CodonMut -> CloneMap -> CloneMap
-removeCodonMutCount codonMut = M.mapWithKey mapRemove
+removeCodonMutCount :: CodonMut -> String -> String -> CloneMap -> CloneMap
+removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
   where
     mapRemove (pos, germ) clones = map (removeCodon germ) clones
     removeCodon germ clone       = clone { fastaSeq
@@ -31,10 +60,17 @@ removeCodonMutCount codonMut = M.mapWithKey mapRemove
                                  . zip (codonSplit germSeq)
                                  . codonSplit
     replaceCodon (x, y)
-        | hamming x y > codonMut = ("---", "---")
-        | otherwise              = (x, y)
-    codonSplit                     = fullCodon . Split.chunksOf 3
-    fullCodon                      = filter ((==3) . length)
+        | (codonMutOp codonMutType) (hamming x y) codonMut
+       && isMutType (map toUpper mutType) x y          = (x, y)
+        | otherwise                                    = ("---", "---")
+    codonSplit                   = fullCodon . Split.chunksOf 3
+    fullCodon                    = filter ((==3) . length)
+    codonMutOp ">" = (>)
+    codonMutOp "<" = (<)
+    codonMutOp "=" = (==)
+    isMutType "REPLACEMENT" x y = codon2aa x /= codon2aa y
+    isMutType "SILENT" x y      = codon2aa x == codon2aa y
+    isMutType _ x y             = True
 
 -- Remove clone sequences that have stop codons in the first stopRange
 -- codons
@@ -65,8 +101,8 @@ removeCustomFilter :: Bool
                    -> CloneMap
 removeCustomFilter germ rm infixField customField customFilter
     | germ && customField == 0 = M.filterWithKey (\(p, k) _ -> inField k)
-    | germ && customField > 0  = M.filterWithKey (\(p, k) _ -> inCustomField k) 
-    | customField == 0 = M.map (filter inField) 
+    | germ && customField > 0  = M.filterWithKey (\(p, k) _ -> inCustomField k)
+    | customField == 0 = M.map (filter inField)
     | customField /= 0 = M.map (filter inCustomField)
   where
     inField         = equal rm infixField customFilter . fastaInfo

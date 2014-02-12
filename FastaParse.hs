@@ -7,6 +7,7 @@ module FastaParse where
 
 -- Built in
 import Data.List
+import Data.Char
 import qualified Data.Map as M
 
 -- Cabal
@@ -67,7 +68,11 @@ generateCloneMap = M.fromList . assocList
                                    . Split.splitOn ">>"
     germline x                     = FastaSequence
                                    { fastaInfo = head . lines $ x
-                                   , fastaSeq  = head . drop 1 . lines $ x
+                                   , fastaSeq  = map toUpper
+                                               . head
+                                               . drop 1
+                                               . lines
+                                               $ x
                                    }
     clones                         = clones2FastaSequence . drop 2 . lines
     clones2FastaSequence []            = []
