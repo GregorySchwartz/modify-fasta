@@ -3,9 +3,13 @@ modify-fasta
 
 Modify Fasta, Gregory W. Schwartz
 
+```
 Usage: modify_fasta [-i|--input FILE] [-a|--aminoAcids] [-A|--normalFasta] [-C|--convertToAminoAcids] [-N|--removeN] [-g|--removeGermlines] [-h|--removeHighlyMutated] [-s|--removeStops] [-r|--inputStopRange [106]|INT] [-c|--inputCodonMut [-1]|0|1|2|3] [-T|--inputCodonMutType [=]|>|<] [-M|--inputMutType [All]|Silent|Replacement] [-f|--inputCustomFilter FIELD_VALUE (String)] [-F|--inputCustomField FIELD_LOCATION (Int)] [-I|--infixCustomFilter] [-G|--customGermline] [-m|--customRemove] [-o|--output FILE]
+
   Modify fasta (and CLIP) files in several optional ways
+
   Available options:
+
     -h,--help Show this help text
     -i,--input FILE      The input CLIP fasta file
     -a,--aminoAcids          Whether these sequences are composed of amino acids (AminoAcid) or nucleotides (Nucleotide)
@@ -25,3 +29,4 @@ Usage: modify_fasta [-i|--input FILE] [-a|--aminoAcids] [-A|--normalFasta] [-C|-
     -G,--customGermline      Whether to apply the custom filter to germlines (>>) instead of sequences (>)
     -m,--customRemove        Whether to remove the sequences containing the custom filter as opposed to remove the sequences that don't contain the filter
     -o,--output FILE         The output fasta file
+```
