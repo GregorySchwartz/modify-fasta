@@ -1,8 +1,8 @@
--- Filter CLIP Fasta
+-- Modify Fasta
 -- By G.W. Schwartz
 
--- Takes a CLIP fasta file and filters the fasta file in several optional
--- ways.
+-- Takes a CLIP fasta file or fasta file and filters the fasta file in
+-- several optional ways.
 
 -- Cabal
 import Options.Applicative
@@ -52,7 +52,7 @@ options = Options
           ( long "normalFasta"
          <> short 'A'
          <> help "Whether the input is a normal fasta file (no germline >>\
-                 \ sequences" )
+                 \ sequences)" )
       <*> switch
           ( long "convertToAminoAcids"
          <> short 'C'
@@ -104,7 +104,7 @@ options = Options
          <> metavar "[All]|Silent|Replacement"
          <> value "All"
          <> help "Only include codons with this all mutations (All),\
-                 \ (or silent (Silent) or replacement (Replacement)" )
+                 \ (or silent (Silent) or replacement (Replacement))" )
       <*> strOption
           ( long "inputCustomFilter"
          <> short 'f'
@@ -143,8 +143,8 @@ options = Options
          <> value "output.fasta"
          <> help "The output fasta file" )
 
-filterCLIPFasta :: Options -> IO ()
-filterCLIPFasta opts = do
+modifyFasta :: Options -> IO ()
+modifyFasta opts = do
     unfilteredContents <- readFile . input $ opts
     -- Get rid of carriages
     let contentsNoCarriages   = filter (/= '\r') $ unfilteredContents
@@ -215,9 +215,9 @@ filterCLIPFasta opts = do
     writeFile (output opts) outputString
 
 main :: IO ()
-main = execParser opts >>= filterCLIPFasta
+main = execParser opts >>= modifyFasta
   where
     opts = info (helper <*> options)
       ( fullDesc
-     <> progDesc "Filter CLIP fasta files in several optional ways"
-     <> header "Filter CLIP Fasta, Gregory W. Schwartz" )
+     <> progDesc "Modify fasta (and CLIP) files in several optional ways"
+     <> header "Modify Fasta, Gregory W. Schwartz" )
