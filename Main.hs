@@ -117,7 +117,9 @@ options = Options
                  \ (1 indexed, split by '|'). If you want to apply to\
                  \ the entire header, either have the location as 0 or\
                  \ exclude the location altogether (, Day 3|IGHV3) for instance\
-                 \ will match if the entire header is '>Day 3|IGHV3'." )
+                 \ will match if the entire header is '>Day 3|IGHV3'.\
+                 \ This list will be filtered one at a time, so you cannot\
+                 \ get multiple filters, but you can remove multiple filters." )
       <*> switch
           ( long "infixCustomFilter"
          <> short 'I'
