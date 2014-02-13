@@ -12,6 +12,8 @@ import Types
 import FastaParse
 import FilterCloneMap
 import Print
+import Control.Monad.State
+import qualified Data.List.Split as Split
 
 -- Command line arguments
 data Options = Options { input               :: String
@@ -27,7 +29,6 @@ data Options = Options { input               :: String
                        , inputCodonMutType   :: String
                        , inputMutType        :: String
                        , inputCustomFilter   :: String
-                       , inputCustomField    :: Int
                        , infixCustomFilter   :: Bool
                        , customGermline      :: Bool
                        , customRemove        :: Bool
@@ -108,16 +109,15 @@ options = Options
       <*> strOption
           ( long "inputCustomFilter"
          <> short 'f'
-         <> metavar "FIELD_VALUE (String)"
+         <> metavar "((FIELD_LOCATION (Int), FIELD_VALUE (String))"
          <> value ""
-         <> help "A custom field value to keep, discarding all others" )
-      <*> option
-          ( long "inputCustomField"
-         <> short 'F'
-         <> metavar "FIELD_LOCATION (Int)"
-         <> value 0
-         <> help "The location of the field in inputCustomFilter\
-                 \ (split by |, 0 means search the whole header)" )
+         <> help "A custom filter. Can take a list of format\
+                 \ \"(Int, String)&&(Int, String)&& ...\" and so on.\
+                 \ The first in the tuple is the location of the field\
+                 \ (1 indexed, split by '|'). If you want to apply to\
+                 \ the entire header, either have the location as 0 or\
+                 \ exclude the location altogether (, Day 3|IGHV3) for instance\
+                 \ will match if the entire header is '>Day 3|IGHV3'." )
       <*> switch
           ( long "infixCustomFilter"
          <> short 'I'
@@ -143,6 +143,15 @@ options = Options
          <> value "output.fasta"
          <> help "The output fasta file" )
 
+customFiltersIntParser :: String -> [(Maybe Int, String)]
+customFiltersIntParser = map (\x -> (first x, second x)) . Split.splitOn "&&"
+  where
+    first x
+        | (head . Split.splitOn "," $ x) == "(" = Nothing
+        | otherwise =
+            Just (read (tail . head . Split.splitOn "," $ x) :: Int)
+    second = init . dropWhile (== ' ') . last . Split.splitOn ","
+
 modifyFasta :: Options -> IO ()
 modifyFasta opts = do
     unfilteredContents <- readFile . input $ opts
@@ -160,8 +169,7 @@ modifyFasta opts = do
     let codonMut              = inputCodonMut opts
     let codonMutType          = inputCodonMutType opts
     let mutType               = inputMutType opts
-    let customFilter          = inputCustomFilter opts
-    let customField           = inputCustomField opts
+    let customFilters         = customFiltersIntParser $ inputCustomFilter opts
     let removeGermlinesFlag   = if (normalFasta opts)
                                     then True
                                     else (removeGermlines opts)
@@ -171,14 +179,14 @@ modifyFasta opts = do
 
     -- Start filtering out sequences
     -- Include only custom filter sequences
-    let cloneMapCustom        = if (not . null $ customFilter)
-                                    then removeCustomFilter
-                                         (customGermline opts)
-                                         (customRemove opts)
-                                         (infixCustomFilter opts)
-                                         customField
-                                         customFilter
-                                         cloneMap
+    let cloneMapCustom        = if (not . null $ customFilters)
+                                    then snd
+                                       . runState ( removeAllCustomFilters
+                                                    (customGermline opts)
+                                                    (customRemove opts)
+                                                    (infixCustomFilter opts)
+                                                    customFilters )
+                                       $ cloneMap
                                     else cloneMap
     -- Remove clones with stops in the range
     let cloneMapNoStops       = if (removeStops opts)
