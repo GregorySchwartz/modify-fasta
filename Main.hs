@@ -201,8 +201,8 @@ modifyFasta opts = do
     -- Remove clones that are highly mutated
     let cloneMapLowMutation   = if (removeHighlyMutated opts)
                                     then filterHighlyMutated
-                                         genUnit cloneMapCustom
-                                    else cloneMapCustom
+                                         genUnit cloneMapNoStops
+                                    else cloneMapNoStops
     -- Remove codons with codons with a certain number of mutations
     let cloneMapNoCodonMut    = if (codonMut > -1)
                                     then removeCodonMutCount codonMut

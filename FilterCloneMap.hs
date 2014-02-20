@@ -35,12 +35,16 @@ filterHighlyMutated genUnit = M.mapWithKey filterMutated
                         . map snd
                         . mutation k
                         $ x
-    filterCodonMutStab isWhat = filter (filterRules isWhat)
-    filterRules isWhat x = isWhat x
-                        && not (inTuple '-' x)
-                        && not (inTuple '.' x)
-                        && not (inTuple '~' x)
-                        && not (inTuple 'N' x)
+    filterCodonMutStab isWhat = filter (filterRules genUnit isWhat)
+    filterRules AminoAcid isWhat x = isWhat x
+                                  && not (inTuple '-' x)
+                                  && not (inTuple '.' x)
+                                  && not (inTuple '~' x)
+    filterRules Nucleotide isWhat x = isWhat x
+                                   && not (inTuple '-' x)
+                                   && not (inTuple '.' x)
+                                   && not (inTuple '~' x)
+                                   && not (inTuple 'N' x)
     inTuple c (x, y)
         | c == x || c == y = True
         | otherwise        = False
