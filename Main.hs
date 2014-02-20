@@ -146,7 +146,10 @@ options = Options
          <> help "The output fasta file" )
 
 customFiltersIntParser :: String -> [(Maybe Int, String)]
-customFiltersIntParser = map (\x -> (first x, second x)) . Split.splitOn "&&"
+customFiltersIntParser "" = []
+customFiltersIntParser s = map (\x -> (first x, second x))
+                         . Split.splitOn "&&"
+                         $ s
   where
     first x
         | (head . Split.splitOn "," $ x) == "(" = Nothing
