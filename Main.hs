@@ -24,6 +24,7 @@ data Options = Options { input               :: String
                        , removeGermlines     :: Bool
                        , removeHighlyMutated :: Bool
                        , removeStops         :: Bool
+                       , removeDuplicates    :: Bool
                        , inputStopRange      :: Int
                        , inputCodonMut       :: CodonMut
                        , inputCodonMutType   :: String
@@ -75,7 +76,11 @@ options = Options
       <*> switch
           ( long "removeStops"
          <> short 's'
-         <> help "Whether to remove clone sequences with stop codons" )
+         <> help "Whether to remove sequences with stop codons" )
+      <*> switch
+          ( long "removeDuplicates"
+         <> short 'd'
+         <> help "Whether to remove duplicate sequences" )
       <*> option
           ( long "inputStopRange"
          <> short 'r'
@@ -198,11 +203,16 @@ modifyFasta opts = do
                                     then removeStopsCloneMap
                                          genUnit stopRange cloneMapCustom
                                     else cloneMapCustom
+    -- Remove duplicate sequences
+    let cloneMapNoDuplicates  = if (removeStops opts)
+                                    then removeDuplicatesCloneMap
+                                         cloneMapNoStops
+                                    else cloneMapNoStops
     -- Remove clones that are highly mutated
     let cloneMapLowMutation   = if (removeHighlyMutated opts)
                                     then filterHighlyMutated
-                                         genUnit cloneMapNoStops
-                                    else cloneMapNoStops
+                                         genUnit cloneMapNoDuplicates
+                                    else cloneMapNoDuplicates
     -- Remove codons with codons with a certain number of mutations
     let cloneMapNoCodonMut    = if (codonMut > -1)
                                     then removeCodonMutCount codonMut
