@@ -4,7 +4,9 @@ modify-fasta
 **Gregory W. Schwartz**
 
 ```
-Usage: modify_fasta [-i|--input FILE] [-a|--aminoAcids] [-A|--normalFasta] [-C|--convertToAminoAcids] [-N|--removeN] [-g|--removeGermlines] [-h|--removeHighlyMutated] [-s|--removeStops] [-r|--inputStopRange [106]|INT] [-c|--inputCodonMut [-1]|0|1|2|3] [-T|--inputCodonMutType [=]|>|<] [-M|--inputMutType [All]|Silent|Replacement] [-f|--inputCustomFilter ((FIELD_LOCATION (Int), FIELD_VALUE (String))] [-I|--infixCustomFilter] [-G|--customGermline] [-m|--customRemove] [-o|--output FILE]
+Modify Fasta, Gregory W. Schwartz
+
+Usage: modify-fasta [-i|--input FILE] [-a|--aminoAcids] [-A|--normalFasta] [-C|--convertToAminoAcids] [-N|--removeN] [-g|--removeGermlines] [-h|--removeHighlyMutated] [-s|--removeStops] [-d|--removeDuplicates] [-r|--inputStopRange [106]|INT] [-c|--inputCodonMut [-1]|0|1|2|3] [-T|--inputCodonMutType [=]|>|<] [-M|--inputMutType [All]|Silent|Replacement] [-f|--inputCustomFilter ((FIELD_LOCATION (Int), FIELD_VALUE (String))] [-I|--infixCustomFilter] [-G|--customGermline] [-m|--customRemove] [-o|--output FILE]
   Modify fasta (and CLIP) files in several optional ways
 
 Available options:
@@ -16,7 +18,8 @@ Available options:
   -N,--removeN             Whether to remove N or n in the sequence
   -g,--removeGermlines     Whether to remove germlines
   -h,--removeHighlyMutated Whether to remove highly mutated clone sequences (a third of their sequence are different amino acids)
-  -s,--removeStops         Whether to remove clone sequences with stop codons
+  -s,--removeStops         Whether to remove sequences with stop codons
+  -d,--removeDuplicates    Whether to remove duplicate sequences
   -r,--inputStopRange [106]|INT Only search for stops with removeStops up to this amino acid position
   -c,--inputCodonMut [-1]|0|1|2|3 Only include codons with this many mutations or less or more, depending on inputCodonMutType (-1 is the same as include all codons). Converts the codon to gaps
   -T,--inputCodonMutType [=]|>|< Only include codons with this many mutations (=) (or lesser (<) or greater (>), depending on inputCodonMut). Converts the codon to gaps
