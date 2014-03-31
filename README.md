@@ -3,6 +3,16 @@ modify-fasta
 
 **Gregory W. Schwartz**
 
+This program will take a fasta file, do certain filterings and transformations
+as specified by the user, and return the new fasta file.
+
+To install:
+```
+cabal configure
+cabal build
+cabal install
+```
+
 ```
 Modify Fasta, Gregory W. Schwartz
 
