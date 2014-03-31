@@ -16,10 +16,10 @@ import qualified Data.List.Split as Split
 -- Local
 import Types
 
--- Takes a fasta file string and removes newlines in the sequences to make
--- this compatible with the fasta parser. The lineCompress function should
--- get rid of any extra newlines messing with the code. Also a flag to see
--- if we should remove N's or not.
+-- Takes a clip fasta file string and removes newlines in the sequences to
+-- make this compatible with the fasta parser. The lineCompress function
+-- should get rid of any extra newlines messing with the code. Also a flag
+-- to see if we should remove N's or not.
 joinSeq :: Bool -> String -> String
 joinSeq removeNFlag = lineCompress
                     . tail

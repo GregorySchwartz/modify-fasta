@@ -46,50 +46,50 @@ options = Options
          <> value ""
          <> help "The input CLIP fasta file" )
       <*> flag Nucleotide AminoAcid
-          ( long "aminoAcids"
+          ( long "amino-acids"
          <> short 'a'
          <> help "Whether these sequences are composed of\
                  \ amino acids (AminoAcid) or nucleotides (Nucleotide)" )
       <*> switch
-          ( long "normalFasta"
+          ( long "normal-fasta"
          <> short 'A'
          <> help "Whether the input is a normal fasta file (no germline >>\
                  \ sequences)" )
       <*> switch
-          ( long "convertToAminoAcids"
+          ( long "convert-to-amino-acids"
          <> short 'C'
          <> help "Whether to convert the filtered sequences to amino acids\
                  \ in the output" )
       <*> switch
-          ( long "removeN"
+          ( long "remove-N"
          <> short 'N'
          <> help "Whether to remove N or n in the sequence" )
       <*> switch
-          ( long "removeGermlines"
+          ( long "remove-germlines"
          <> short 'g'
          <> help "Whether to remove germlines" )
       <*> switch
-          ( long "removeHighlyMutated"
+          ( long "remove-highly-mutated"
          <> short 'h'
          <> help "Whether to remove highly mutated clone sequences (a third\
                  \ of their sequence are different amino acids)" )
       <*> switch
-          ( long "removeStops"
+          ( long "remove-stops"
          <> short 's'
          <> help "Whether to remove sequences with stop codons" )
       <*> switch
-          ( long "removeDuplicates"
+          ( long "remove-duplicates"
          <> short 'd'
          <> help "Whether to remove duplicate sequences" )
       <*> option
-          ( long "inputStopRange"
+          ( long "input-stop-range"
          <> short 'r'
          <> metavar "[106]|INT"
          <> value 106
          <> help "Only search for stops with removeStops up to this\
                  \ amino acid position" )
       <*> option
-          ( long "inputCodonMut"
+          ( long "input-codon-mut"
          <> short 'c'
          <> metavar "[-1]|0|1|2|3"
          <> value (-1)
@@ -97,7 +97,7 @@ options = Options
                  \ depending on inputCodonMutType (-1 is the same as include\
                  \ all codons). Converts the codon to gaps" )
       <*> strOption
-          ( long "inputCodonMutType"
+          ( long "input-codon-mut-type"
          <> short 'T'
          <> metavar "[=]|>|<"
          <> value "="
@@ -105,14 +105,14 @@ options = Options
                  \ (or lesser (<) or greater (>), depending on\
                  \ inputCodonMut). Converts the codon to gaps" )
       <*> strOption
-          ( long "inputMutType"
+          ( long "input-mut-type"
          <> short 'M'
          <> metavar "[All]|Silent|Replacement"
          <> value "All"
          <> help "Only include codons with this all mutations (All),\
                  \ (or silent (Silent) or replacement (Replacement))" )
       <*> strOption
-          ( long "inputCustomFilter"
+          ( long "input-custom-filter"
          <> short 'f'
          <> metavar "((FIELD_LOCATION (Int), FIELD_VALUE (String))"
          <> value ""
@@ -126,19 +126,19 @@ options = Options
                  \ This list will be filtered one at a time, so you cannot\
                  \ get multiple filters, but you can remove multiple filters." )
       <*> switch
-          ( long "infixCustomFilter"
+          ( long "infix-custom-filter"
          <> short 'I'
          <> help "Whether to find the custom filter in the field\
                  \ as an infix (some part of the custom field\
                  \ matches the header) as opposed to an\
                  \ exact match (the entire field must be the custom field)" )
       <*> switch
-          ( long "customGermline"
+          ( long "custom-germline"
          <> short 'G'
          <> help "Whether to apply the custom filter to germlines (>>)\
                  \ instead of sequences (>)" )
       <*> switch
-          ( long "customRemove"
+          ( long "custom-remove"
          <> short 'm'
          <> help "Whether to remove the sequences containing the custom filter\
                  \ as opposed to remove the sequences that don't contain the\
@@ -204,7 +204,7 @@ modifyFasta opts = do
                                          genUnit stopRange cloneMapCustom
                                     else cloneMapCustom
     -- Remove duplicate sequences
-    let cloneMapNoDuplicates  = if (removeStops opts)
+    let cloneMapNoDuplicates  = if (removeDuplicates opts)
                                     then removeDuplicatesCloneMap
                                          cloneMapNoStops
                                     else cloneMapNoStops
