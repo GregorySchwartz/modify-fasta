@@ -10,7 +10,6 @@ import Data.List
 import Data.Char
 import Data.Maybe
 import qualified Data.Set as S
-import Control.Monad.State
 import qualified Data.Map as M
 
 -- Cabal
@@ -116,16 +115,17 @@ removeCustomFilter :: Bool
                    -> Bool
                    -> Maybe Int
                    -> String
-                   -> State CloneMap ()
-removeCustomFilter germ rm infixField customField customFilter
+                   -> CloneMap
+                   -> CloneMap
+removeCustomFilter germ rm infixField customField customFilter cloneMap
     | germ && ((customField == Just 0) || (isNothing customField))
-        = state $ \cm -> ((), M.filterWithKey (\(p, k) _ -> inField k) cm)
+        = M.filterWithKey (\(p, k) _ -> inField k) cloneMap
     | germ && customField > Just 0
-        = state $ \cm -> ((), M.filterWithKey (\(p, k) _ -> inCustomField k) cm)
+        = M.filterWithKey (\(p, k) _ -> inCustomField k) cloneMap
     | (customField == Just 0) || (isNothing customField)
-        = state $ \cm -> ((), M.map (filter inField) cm)
+        = M.map (filter inField) cloneMap
     | customField > Just 0 =
-        state $ \cm -> ((), M.map (filter inCustomField) cm)
+        M.map (filter inCustomField) cloneMap
   where
     inField         = equal rm infixField customFilter . fastaInfo
     inCustomField x = equal rm infixField customFilter
@@ -139,11 +139,12 @@ removeCustomFilter germ rm infixField customField customFilter
 removeAllCustomFilters :: Bool
                        -> Bool
                        -> Bool
+                       -> CloneMap
                        -> [(Maybe Int, String)]
-                       -> State CloneMap ()
-removeAllCustomFilters germ rm infixField customFilters = do
-    forM_ customFilters ( \(x, y) -> do
-                          removeCustomFilter germ rm infixField x y )
+                       -> CloneMap
+removeAllCustomFilters germ rm infixField cloneMap = foldl' filterMap cloneMap
+  where
+    filterMap acc (x, y) = removeCustomFilter germ rm infixField x y acc
 
 -- Remove clones that do not have any sequences after the filtrations
 removeEmptyClone :: CloneMap -> CloneMap

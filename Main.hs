@@ -12,7 +12,6 @@ import Types
 import FastaParse
 import FilterCloneMap
 import Print
-import Control.Monad.State
 import qualified Data.List.Split as Split
 
 -- Command line arguments
@@ -190,13 +189,12 @@ modifyFasta opts = do
     -- Start filtering out sequences
     -- Include only custom filter sequences
     let cloneMapCustom        = if (not . null $ customFilters)
-                                    then snd
-                                       . runState ( removeAllCustomFilters
-                                                    (customGermline opts)
-                                                    (customRemove opts)
-                                                    (infixCustomFilter opts)
-                                                    customFilters )
-                                       $ cloneMap
+                                    then removeAllCustomFilters
+                                         (customGermline opts)
+                                         (customRemove opts)
+                                         (infixCustomFilter opts)
+                                         cloneMap
+                                         customFilters
                                     else cloneMap
     -- Remove clones with stops in the range
     let cloneMapNoStops       = if (removeStops opts)
