@@ -8,8 +8,7 @@ as specified by the user, and return the new fasta file.
 
 To install:
 ```
-cabal configure
-cabal build
+cabal update
 cabal install
 ```
 
