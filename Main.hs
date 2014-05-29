@@ -167,7 +167,7 @@ modifyFasta opts = do
     -- Get rid of carriages
     let contentsNoCarriages   = filter (/= '\r') $ unfilteredContents
     -- If clipFasta, insert filler germlines
-    let contentsCLIP          = if (clipFasta opts)
+    let contentsCLIP          = if (not . clipFasta $ opts)
                                     then addFillerGermlines contentsNoCarriages
                                     else contentsNoCarriages
     -- No redundant newlines in sequence
@@ -179,7 +179,7 @@ modifyFasta opts = do
     let codonMutType          = inputCodonMutType opts
     let mutType               = inputMutType opts
     let customFilters         = customFiltersIntParser $ inputCustomFilter opts
-    let removeGermlinesFlag   = if (clipFasta opts)
+    let removeGermlinesFlag   = if (not . clipFasta $ opts)
                                     then True
                                     else (removeGermlines opts)
 
