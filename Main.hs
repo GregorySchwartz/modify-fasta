@@ -17,7 +17,7 @@ import qualified Data.List.Split as Split
 -- Command line arguments
 data Options = Options { input               :: String
                        , aminoAcids          :: GeneticUnit
-                       , normalFasta         :: Bool
+                       , clipFasta           :: Bool
                        , convertToAminoAcids :: Bool
                        , removeN             :: Bool
                        , removeGermlines     :: Bool
@@ -50,9 +50,9 @@ options = Options
          <> help "Whether these sequences are composed of\
                  \ amino acids (AminoAcid) or nucleotides (Nucleotide)" )
       <*> switch
-          ( long "normal-fasta"
+          ( long "clip-fasta"
          <> short 'A'
-         <> help "Whether the input is a normal fasta file (no germline >>\
+         <> help "Whether the input is a clip fasta file (has germline >>\
                  \ sequences)" )
       <*> switch
           ( long "convert-to-amino-acids"
@@ -166,8 +166,8 @@ modifyFasta opts = do
     unfilteredContents <- readFile . input $ opts
     -- Get rid of carriages
     let contentsNoCarriages   = filter (/= '\r') $ unfilteredContents
-    -- If normalFasta, insert filler germlines
-    let contentsCLIP          = if (normalFasta opts)
+    -- If clipFasta, insert filler germlines
+    let contentsCLIP          = if (clipFasta opts)
                                     then addFillerGermlines contentsNoCarriages
                                     else contentsNoCarriages
     -- No redundant newlines in sequence
@@ -179,7 +179,7 @@ modifyFasta opts = do
     let codonMutType          = inputCodonMutType opts
     let mutType               = inputMutType opts
     let customFilters         = customFiltersIntParser $ inputCustomFilter opts
-    let removeGermlinesFlag   = if (normalFasta opts)
+    let removeGermlinesFlag   = if (clipFasta opts)
                                     then True
                                     else (removeGermlines opts)
 
