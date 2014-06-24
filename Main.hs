@@ -32,6 +32,8 @@ data Options = Options { input               :: String
                        , infixCustomFilter   :: Bool
                        , customGermline      :: Bool
                        , customRemove        :: Bool
+                       , geneAlleleField     :: Int
+                       , count               :: Bool
                        , output              :: String
                        }
 
@@ -43,7 +45,7 @@ options = Options
          <> short 'i'
          <> metavar "FILE"
          <> value ""
-         <> help "The input CLIP fasta file" )
+         <> help "The input fasta file or CLIP fasta file" )
       <*> flag Nucleotide AminoAcid
           ( long "amino-acids"
          <> short 'a'
@@ -142,6 +144,17 @@ options = Options
          <> help "Whether to remove the sequences containing the custom filter\
                  \ as opposed to remove the sequences that don't contain the\
                  \ filter" )
+      <*> option
+          ( long "gene-allele-field"
+         <> short 'V'
+         <> metavar "[1]|INT"
+         <> value 1
+         <> help "The field (1 indexed) of the gene allele name" )
+      <*> switch
+          ( long "count"
+         <> short 'v'
+         <> help "Do not save output, just count genes and alleles from\
+                 \ the results. Requires geneAlleleField" )
       <*> strOption
           ( long "output"
          <> short 'o'
@@ -227,13 +240,24 @@ modifyFasta opts = do
                                          cloneMapNoEmptyClones
                                     else cloneMapNoEmptyClones
 
-    -- Print results
-    let outputString = if removeGermlinesFlag
-                           then  printFastaNoGermline cloneMapAA
-                           else  printFasta cloneMapAA
+    -- What to do with results
+    case (count opts) of
+        True -> do
+            -- Print results
+            let outputString = printSequenceCount
+                               (clipFasta opts)
+                               (geneAlleleField opts)
+                               cloneMapAA
+            -- Print results to stdout
+            putStrLn outputString
+        False -> do
+            -- Print results
+            let outputString = if removeGermlinesFlag
+                                   then  printFastaNoGermline cloneMapAA
+                                   else  printFasta cloneMapAA
 
-    -- Save results
-    writeFile (output opts) outputString
+            -- Save results
+            writeFile (output opts) outputString
 
 main :: IO ()
 main = execParser opts >>= modifyFasta
