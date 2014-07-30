@@ -21,7 +21,7 @@ import Types
 printFasta :: CloneMap -> String
 printFasta = body
   where
-    body                = intercalate "\n"
+    body                = unlines
                         . map mapGerm
                         . M.toAscList
                         . M.map (intercalate "\n" . map mapClone)
@@ -33,7 +33,7 @@ printFasta = body
 printFastaNoGermline :: CloneMap -> String
 printFastaNoGermline = body
   where
-    body                = intercalate "\n"
+    body                = unlines
                         . map mapGerm
                         . M.toAscList
                         . M.map (intercalate "\n" . map mapClone)
