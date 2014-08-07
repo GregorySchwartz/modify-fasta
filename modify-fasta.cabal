@@ -19,3 +19,6 @@ executable modify-fasta
   main-is:             Main.hs
   -- other-modules:       
   build-depends:       base >=4.5, containers >=0.4, mtl >=2.0, split >=0.2, optparse-applicative >=0.7
+
+  -- Directories containing source files.
+  hs-source-dirs:      src
