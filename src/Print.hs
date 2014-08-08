@@ -12,9 +12,7 @@ import qualified Data.Map as M
 
 -- Cabal
 import qualified Data.List.Split as Split
-
--- Local
-import Types
+import Data.Fasta.String
 
 -- Return the results of the filtration in string form for saving
 -- to a file
@@ -38,7 +36,7 @@ printFastaNoGermline = body
                         . M.toAscList
                         . M.map (intercalate "\n" . map mapClone)
     mapGerm ((_, _), z) = z
-    mapClone x          = fastaInfo x ++ "\n" ++ fastaSeq x
+    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
 
 printSequenceCount :: Bool -> Int -> CloneMap -> String
 printSequenceCount clip idx s = body

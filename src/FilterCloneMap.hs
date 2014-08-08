@@ -14,6 +14,7 @@ import qualified Data.Map as M
 
 -- Cabal
 import qualified Data.List.Split as Split
+import Data.Fasta.String
 
 -- Local
 import Types
@@ -31,7 +32,7 @@ filterHighlyMutated genUnit = M.mapWithKey filterMutated
                        <= ( ( genericLength
                             . realMutations (readSeq genUnit . fastaSeq $ k)
                             $ readSeq genUnit . fastaSeq $ x) :: Double )
-    realMutations k x   = filterCodonMutStab (\(x, y) -> x /= y)
+    realMutations k x   = filterCodonMutStab (\(y, z) -> y /= z)
                         . map snd
                         . mutation k
                         $ x
@@ -57,7 +58,7 @@ filterHighlyMutated genUnit = M.mapWithKey filterMutated
 removeCodonMutCount :: CodonMut -> String -> String -> CloneMap -> CloneMap
 removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
   where
-    mapRemove (pos, germ) clones = map (removeCodon germ) clones
+    mapRemove (_, germ) clones   = map (removeCodon germ) clones
     removeCodon germ clone       = clone { fastaSeq
                                          = remove (fastaSeq germ)
                                          . fastaSeq $ clone }
@@ -76,7 +77,7 @@ removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
     codonMutOp "=" = (==)
     isMutType "REPLACEMENT" x y = codon2aa x /= codon2aa y
     isMutType "SILENT" x y      = codon2aa x == codon2aa y
-    isMutType _ x y             = True
+    isMutType _ _ _             = True
 
 -- Remove clone sequences that have stop codons in the first stopRange
 -- codons
@@ -119,9 +120,9 @@ removeCustomFilter :: Bool
                    -> CloneMap
 removeCustomFilter germ rm infixField customField customFilter cloneMap
     | germ && ((customField == Just 0) || (isNothing customField))
-        = M.filterWithKey (\(p, k) _ -> inField k) cloneMap
+        = M.filterWithKey (\(_, k) _ -> inField k) cloneMap
     | germ && customField > Just 0
-        = M.filterWithKey (\(p, k) _ -> inCustomField k) cloneMap
+        = M.filterWithKey (\(_, k) _ -> inCustomField k) cloneMap
     | (customField == Just 0) || (isNothing customField)
         = M.map (filter inField) cloneMap
     | customField > Just 0 =

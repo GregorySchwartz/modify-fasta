@@ -6,10 +6,11 @@
 
 -- Cabal
 import Options.Applicative
+import Data.Fasta.String.Parse
 
 -- Local
 import Types
-import FastaParse
+import Utility
 import FilterCloneMap
 import Print
 import qualified Data.List.Split as Split
@@ -176,32 +177,33 @@ customFiltersIntParser s = map (\x -> (first x, second x))
 
 modifyFasta :: Options -> IO ()
 modifyFasta opts = do
-    unfilteredContents <- readFile . input $ opts
-    -- Get rid of carriages
-    let contentsNoCarriages   = filter (/= '\r') $ unfilteredContents
-    -- If clipFasta, insert filler germlines
-    let contentsCLIP          = if (not . clipFasta $ opts)
-                                    then addFillerGermlines contentsNoCarriages
-                                    else contentsNoCarriages
+    contents <- readFile . input $ opts
     -- No redundant newlines in sequence
-    let contents              = joinSeq (removeN opts) contentsCLIP
-
     let genUnit               = aminoAcids opts
-    let stopRange             = inputStopRange opts
-    let codonMut              = inputCodonMut opts
-    let codonMutType          = inputCodonMutType opts
-    let mutType               = inputMutType opts
-    let customFilters         = customFiltersIntParser $ inputCustomFilter opts
-    let removeGermlinesFlag   = if (not . clipFasta $ opts)
+        stopRange             = inputStopRange opts
+        codonMut              = inputCodonMut opts
+        codonMutType          = inputCodonMutType opts
+        mutType               = inputMutType opts
+        customFilters         = customFiltersIntParser $ inputCustomFilter opts
+        removeGermlinesFlag   = if (not . clipFasta $ opts)
                                     then True
                                     else (removeGermlines opts)
 
     -- Initiate CloneMap
-    let cloneMap              = generateCloneMap contents
+        cloneMapNs            = if (not . clipFasta $ opts)
+                                    then addFillerGermlines
+                                       . parseFasta
+                                       $ contents
+                                    else parseCLIPFasta contents
+
+    -- Remove Ns from CloneMap
+        cloneMap              = if (removeN opts)
+                                    then removeCLIPNs cloneMapNs
+                                    else cloneMapNs
 
     -- Start filtering out sequences
     -- Include only custom filter sequences
-    let cloneMapCustom        = if (not . null $ customFilters)
+        cloneMapCustom        = if (not . null $ customFilters)
                                     then removeAllCustomFilters
                                          (customGermline opts)
                                          (customRemove opts)
@@ -210,32 +212,32 @@ modifyFasta opts = do
                                          customFilters
                                     else cloneMap
     -- Remove clones with stops in the range
-    let cloneMapNoStops       = if (removeStops opts)
+        cloneMapNoStops       = if (removeStops opts)
                                     then removeStopsCloneMap
                                          genUnit stopRange cloneMapCustom
                                     else cloneMapCustom
     -- Remove duplicate sequences
-    let cloneMapNoDuplicates  = if (removeDuplicates opts)
+        cloneMapNoDuplicates  = if (removeDuplicates opts)
                                     then removeDuplicatesCloneMap
                                          cloneMapNoStops
                                     else cloneMapNoStops
     -- Remove clones that are highly mutated
-    let cloneMapLowMutation   = if (removeHighlyMutated opts)
+        cloneMapLowMutation   = if (removeHighlyMutated opts)
                                     then filterHighlyMutated
                                          genUnit cloneMapNoDuplicates
                                     else cloneMapNoDuplicates
     -- Remove codons with codons with a certain number of mutations
-    let cloneMapNoCodonMut    = if (codonMut > -1)
+        cloneMapNoCodonMut    = if (codonMut > -1)
                                     then removeCodonMutCount codonMut
                                                              codonMutType
                                                              mutType
                                                              cloneMapLowMutation
                                     else cloneMapLowMutation
     -- Remove empty clones
-    let cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
+        cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
 
     -- Convert sequences to amino acids
-    let cloneMapAA            = if (convertToAminoAcids opts)
+        cloneMapAA            = if (convertToAminoAcids opts)
                                     then convertToAminoAcidsCloneMap
                                          cloneMapNoEmptyClones
                                     else cloneMapNoEmptyClones
