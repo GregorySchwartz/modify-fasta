@@ -19,7 +19,6 @@ import Data.Fasta.String
 -- Local
 import Types
 import Diversity
-import Translation
 
 -- Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
@@ -27,11 +26,11 @@ filterHighlyMutated :: GeneticUnit -> CloneMap -> CloneMap
 filterHighlyMutated genUnit = M.mapWithKey filterMutated
   where
     filterMutated k xs  = filter (not . isHighlyMutated (snd k)) xs
-    isHighlyMutated k x = ( (genericLength (readSeq genUnit . fastaSeq $ x)
+    isHighlyMutated k x = ( (genericLength (fastaSeq . readSeq genUnit $ x)
                            :: Double) / 3 )
                        <= ( ( genericLength
-                            . realMutations (readSeq genUnit . fastaSeq $ k)
-                            $ readSeq genUnit . fastaSeq $ x) :: Double )
+                            . realMutations (fastaSeq . readSeq genUnit $ k)
+                            $ fastaSeq . readSeq genUnit $ x) :: Double )
     realMutations k x   = filterCodonMutStab (\(y, z) -> y /= z)
                         . map snd
                         . mutation k
@@ -87,8 +86,8 @@ removeStopsCloneMap genUnit stopRange = M.map (filter (filterStops genUnit))
     filterStops Nucleotide = not
                            . elem '*'
                            . take stopRange
-                           . translate
                            . fastaSeq
+                           . translate
     filterStops AminoAcid  = not . elem '*' . take stopRange . fastaSeq
 
 -- Remove duplicate sequences
@@ -157,4 +156,4 @@ convertToAminoAcidsCloneMap = M.mapKeys keyMap
                             . M.map (map translateFastaSequence)
   where
     keyMap (x, y) = (x, translateFastaSequence y)
-    translateFastaSequence x = x { fastaSeq = translate . fastaSeq $ x }
+    translateFastaSequence x = x { fastaSeq = fastaSeq . translate $ x }
