@@ -88,7 +88,7 @@ options = Options
          <> short 'r'
          <> metavar "[106]|INT"
          <> value 106
-         <> help "Only search for stops with removeStops up to this\
+         <> help "Only search for stops with remove-stops up to this\
                  \ amino acid position" )
       <*> option
           ( long "input-codon-mut"
@@ -96,7 +96,7 @@ options = Options
          <> metavar "[-1]|0|1|2|3"
          <> value (-1)
          <> help "Only include codons with this many mutations or less or more,\
-                 \ depending on inputCodonMutType (-1 is the same as include\
+                 \ depending on input-codon-mut-type (-1 is the same as include\
                  \ all codons). Converts the codon to gaps" )
       <*> strOption
           ( long "input-codon-mut-type"
@@ -105,7 +105,7 @@ options = Options
          <> value "="
          <> help "Only include codons with this many mutations (=)\
                  \ (or lesser (<) or greater (>), depending on\
-                 \ inputCodonMut). Converts the codon to gaps" )
+                 \ input-codon-mut). Converts the codon to gaps" )
       <*> strOption
           ( long "input-mut-type"
          <> short 'M'
@@ -155,7 +155,7 @@ options = Options
           ( long "count"
          <> short 'v'
          <> help "Do not save output, just count genes and alleles from\
-                 \ the results. Requires geneAlleleField" )
+                 \ the results. Requires gene-allele-field" )
       <*> strOption
           ( long "output"
          <> short 'o'
