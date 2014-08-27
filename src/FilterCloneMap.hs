@@ -127,9 +127,9 @@ removeCustomFilter germ rm infixField customField customFilter cloneMap
     | customField > Just 0 =
         M.map (filter inCustomField) cloneMap
   where
-    inField         = equal rm infixField customFilter . fastaInfo
+    inField         = equal rm infixField customFilter . fastaHeader
     inCustomField x = equal rm infixField customFilter
-                    . (!!) (Split.splitOn "|" . fastaInfo $ x)
+                    . (!!) (Split.splitOn "|" . fastaHeader $ x)
                     $ (fromJust customField - 1)
     equal False False x = (==) x
     equal False True x  = isInfixOf x

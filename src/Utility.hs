@@ -17,4 +17,4 @@ addFillerGermlines = M.fromList . labelGermlines . map insertDummy
   where
     labelGermlines  = map (\(x, (y, z)) -> ((x, y), z)) . zip [0..]
     insertDummy x   = (dummy, [x])
-    dummy = FastaSequence {fastaInfo = "filler", fastaSeq = "---"}
+    dummy = FastaSequence {fastaHeader = "filler", fastaSeq = "---"}

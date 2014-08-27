@@ -12,9 +12,7 @@ import qualified Data.Map as M
 
 -- Cabal
 import qualified Data.List.Split as Split
-
--- Local
-import Types
+import Data.Fasta.String
 
 -- Takes a clip fasta file string and removes newlines in the sequences to
 -- make this compatible with the fasta parser. The lineCompress function
@@ -33,15 +31,15 @@ joinSeq removeNFlag = lineCompress
     cloneEntry x           = newGerm (germline x)
                           ++ concat (map newClone . filter (/= "") . clone $ x)
     newGerm x
-        | seq x /= ""      = "\n>>" ++ (header x) ++ "\n" ++ (seq x)
+        | getSeq x /= ""   = "\n>>" ++ (header x) ++ "\n" ++ (getSeq x)
         | otherwise        = ""
     newClone x
-        | seq x /= ""      = "\n>" ++ (header x) ++ "\n" ++ (seq x)
+        | getSeq x /= ""   = "\n>" ++ (header x) ++ "\n" ++ (getSeq x)
         | otherwise        = ""
     germline               = head . Split.splitOn ">"
     clone                  = tail . Split.splitOn ">"
     header                 = head . lines
-    seq                    = map (removeN removeNFlag) . concat . tail . lines
+    getSeq                 = map (removeN removeNFlag) . concat . tail . lines
     lineCompress []        = []
     lineCompress ('\n':xs) = '\n' : (lineCompress $ dropWhile (== '\n') xs)
     lineCompress (x:xs)    = x : (lineCompress xs)
@@ -67,7 +65,7 @@ generateCloneMap = M.fromList . assocList
                                    . filter (/= "")
                                    . Split.splitOn ">>"
     germline x                     = FastaSequence
-                                   { fastaInfo = head . lines $ x
+                                   { fastaHeader = head . lines $ x
                                    , fastaSeq  = map toUpper
                                                . head
                                                . drop 1
@@ -76,10 +74,10 @@ generateCloneMap = M.fromList . assocList
                                    }
     clones                         = clones2FastaSequence . drop 2 . lines
     clones2FastaSequence []            = []
-    clones2FastaSequence (info:seq:xs) = FastaSequence { fastaInfo = info
-                                                       , fastaSeq  = seq
-                                                       }
-                                       : (clones2FastaSequence xs)
+    clones2FastaSequence (h:s:xs) = FastaSequence { fastaHeader = h
+                                                  , fastaSeq    = s
+                                                  }
+                                  : (clones2FastaSequence xs)
 
 -- Adds filler germlines to normal fasta files
 addFillerGermlines :: String -> String

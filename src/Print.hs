@@ -22,9 +22,13 @@ printFasta = body
     body                = unlines
                         . map mapGerm
                         . M.toAscList
-                        . M.map (intercalate "\n" . map mapClone)
-    mapGerm ((_, y), z) = ">>" ++ fastaInfo y ++ "\n" ++ fastaSeq y ++ "\n" ++ z
-    mapClone x          = fastaInfo x ++ "\n" ++ fastaSeq x
+                        . M.map (intercalate "\n" . map show)
+    mapGerm ((_, y), z) = ">>"
+                       ++ fastaHeader y
+                       ++ "\n"
+                       ++ fastaSeq y
+                       ++ "\n"
+                       ++ z
 
 -- Return the results of the filtration in string form for saving
 -- to a file and excluding germline
@@ -34,9 +38,8 @@ printFastaNoGermline = body
     body                = unlines
                         . map mapGerm
                         . M.toAscList
-                        . M.map (intercalate "\n" . map mapClone)
+                        . M.map (intercalate "\n" . map show)
     mapGerm ((_, _), z) = z
-    mapClone x          = ">" ++ fastaInfo x ++ "\n" ++ fastaSeq x
 
 printSequenceCount :: Bool -> Int -> CloneMap -> String
 printSequenceCount clip idx s = body
@@ -71,5 +74,5 @@ printSequenceCount clip idx s = body
     countProp True ((_, x), y)  = (getField idx x, length y)
     countProp False ((_, _), y) = (getField idx . head $ y, 1)
     getField f h   = splitHeader h !! (f - 1)
-    splitHeader    = Split.splitOn "|" . fastaInfo
+    splitHeader    = Split.splitOn "|" . fastaHeader
 
