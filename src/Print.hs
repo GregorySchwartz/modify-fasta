@@ -22,7 +22,7 @@ printFasta = body
     body                = unlines
                         . map mapGerm
                         . M.toAscList
-                        . M.map (intercalate "\n" . map show)
+                        . M.map (intercalate "\n" . map showFasta)
     mapGerm ((_, y), z) = ">>"
                        ++ fastaHeader y
                        ++ "\n"
@@ -38,7 +38,7 @@ printFastaNoGermline = body
     body                = unlines
                         . map mapGerm
                         . M.toAscList
-                        . M.map (intercalate "\n" . map show)
+                        . M.map (intercalate "\n" . map showFasta)
     mapGerm ((_, _), z) = z
 
 printSequenceCount :: Bool -> Int -> CloneMap -> String
