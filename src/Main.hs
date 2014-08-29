@@ -30,7 +30,6 @@ data Options = Options { input               :: String
                        , inputCodonMutType   :: String
                        , inputMutType        :: String
                        , inputCustomFilter   :: String
-                       , infixCustomFilter   :: Bool
                        , customGermline      :: Bool
                        , customRemove        :: Bool
                        , geneAlleleField     :: Int
@@ -119,7 +118,8 @@ options = Options
          <> metavar "((FIELD_LOCATION (Int), FIELD_VALUE (String))"
          <> value ""
          <> help "A custom filter. Can take a list of format\
-                 \ \"(Int, String)&&(Int, String)&& ...\" and so on.\
+                 \ \"(Int, String)&&(Int, String)&& ...\" and so on. The String\
+                 \ is in regex format (POSIX extended)!\
                  \ The first in the tuple is the location of the field\
                  \ (1 indexed, split by '|'). If you want to apply to\
                  \ the entire header, either have the location as 0 or\
@@ -127,13 +127,6 @@ options = Options
                  \ will match if the entire header is '>Day 3|IGHV3'.\
                  \ This list will be filtered one at a time, so you cannot\
                  \ get multiple filters, but you can remove multiple filters." )
-      <*> switch
-          ( long "infix-custom-filter"
-         <> short 'I'
-         <> help "Whether to find the custom filter in the field\
-                 \ as an infix (some part of the custom field\
-                 \ matches the header) as opposed to an\
-                 \ exact match (the entire field must be the custom field)" )
       <*> switch
           ( long "custom-germline"
          <> short 'G'
@@ -207,7 +200,6 @@ modifyFasta opts = do
                                     then removeAllCustomFilters
                                          (customGermline opts)
                                          (customRemove opts)
-                                         (infixCustomFilter opts)
                                          cloneMap
                                          customFilters
                                     else cloneMap

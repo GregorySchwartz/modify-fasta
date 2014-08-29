@@ -11,6 +11,7 @@ import Data.Char
 import Data.Maybe
 import qualified Data.Set as S
 import qualified Data.Map as M
+import Text.Regex.TDFA
 
 -- Cabal
 import qualified Data.List.Split as Split
@@ -112,12 +113,11 @@ removeDuplicatesCloneMap cloneMap = M.map
 -- sequences.
 removeCustomFilter :: Bool
                    -> Bool
-                   -> Bool
                    -> Maybe Int
                    -> String
                    -> CloneMap
                    -> CloneMap
-removeCustomFilter germ rm infixField customField customFilter cloneMap
+removeCustomFilter germ rm customField customFilter cloneMap
     | germ && ((customField == Just 0) || (isNothing customField))
         = M.filterWithKey (\(_, k) _ -> inField k) cloneMap
     | germ && customField > Just 0
@@ -127,24 +127,21 @@ removeCustomFilter germ rm infixField customField customFilter cloneMap
     | customField > Just 0 =
         M.map (filter inCustomField) cloneMap
   where
-    inField         = equal rm infixField customFilter . fastaHeader
-    inCustomField x = equal rm infixField customFilter
+    inField         = equal rm customFilter . fastaHeader
+    inCustomField x = equal rm customFilter
                     . (!!) (Split.splitOn "|" . fastaHeader $ x)
                     $ (fromJust customField - 1)
-    equal False False x = (==) x
-    equal False True x  = isInfixOf x
-    equal True False x  = (/=) x
-    equal True True x   = not . isInfixOf x
+    equal False x y = y =~ x :: Bool
+    equal True x y  = not . equal False x $ y
 
 removeAllCustomFilters :: Bool
-                       -> Bool
                        -> Bool
                        -> CloneMap
                        -> [(Maybe Int, String)]
                        -> CloneMap
-removeAllCustomFilters germ rm infixField cloneMap = foldl' filterMap cloneMap
+removeAllCustomFilters germ rm cloneMap = foldl' filterMap cloneMap
   where
-    filterMap acc (x, y) = removeCustomFilter germ rm infixField x y acc
+    filterMap acc (x, y) = removeCustomFilter germ rm x y acc
 
 -- Remove clones that do not have any sequences after the filtrations
 removeEmptyClone :: CloneMap -> CloneMap
