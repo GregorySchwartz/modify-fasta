@@ -24,9 +24,9 @@ Usage: modify-fasta [-i|--input FILE] [-a|--amino-acids] [-A|--clip-fasta]
                     [-T|--input-codon-mut-type [=]|>|<]
                     [-M|--input-mut-type [All]|Silent|Replacement]
                     [-f|--input-custom-filter ((FIELD_LOCATION (Int), FIELD_VALUE (String))]
-                    [-I|--infix-custom-filter] [-G|--custom-germline]
-                    [-m|--custom-remove] [-V|--gene-allele-field [1]|INT]
-                    [-v|--count] [-o|--output FILE]
+                    [-G|--custom-germline] [-m|--custom-remove]
+                    [-V|--gene-allele-field [1]|INT] [-v|--count]
+                    [-o|--output FILE]
   Modify fasta (and CLIP) files in several optional ways
 
 Available options:
@@ -63,19 +63,15 @@ Available options:
                            (or silent (Silent) or replacement (Replacement))
   -f,--input-custom-filter ((FIELD_LOCATION (Int), FIELD_VALUE (String))
                            A custom filter. Can take a list of format "(Int,
-                           String)&&(Int, String)&& ..." and so on. The first in
-                           the tuple is the location of the field (1 indexed,
-                           split by '|'). If you want to apply to the entire
-                           header, either have the location as 0 or exclude the
-                           location altogether (, Day 3|IGHV3) for instance will
-                           match if the entire header is '>Day 3|IGHV3'. This
-                           list will be filtered one at a time, so you cannot
-                           get multiple filters, but you can remove multiple
-                           filters.
-  -I,--infix-custom-filter Whether to find the custom filter in the field as an
-                           infix (some part of the custom field matches the
-                           header) as opposed to an exact match (the entire
-                           field must be the custom field)
+                           String)&&(Int, String)&& ..." and so on. The String
+                           is in regex format (POSIX extended)! The first in the
+                           tuple is the location of the field (1 indexed, split
+                           by '|'). If you want to apply to the entire header,
+                           either have the location as 0 or exclude the location
+                           altogether (, Day 3|IGHV3) for instance will match if
+                           the entire header is '>Day 3|IGHV3'. This list will
+                           be filtered one at a time, so you cannot get multiple
+                           filters, but you can remove multiple filters.
   -G,--custom-germline     Whether to apply the custom filter to germlines (>>)
                            instead of sequences (>)
   -m,--custom-remove       Whether to remove the sequences containing the custom
