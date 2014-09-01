@@ -168,8 +168,19 @@ customFiltersIntParser s = map (\x -> (first x, second x))
             Just (read (tail . head . Split.splitOn "," $ x) :: Int)
     second = init . dropWhile (== ' ') . last . Split.splitOn ","
 
+isAminoAcid :: GeneticUnit -> Bool
+isAminoAcid AminoAcid = True
+isAminoAcid _         = False
+
 modifyFasta :: Options -> IO ()
 modifyFasta opts = do
+    -- Checking if user knows what he or she is doing
+    case (aminoAcids opts) of
+        AminoAcid -> putStrLn "Amino acid sequence input, nucleotide options if\
+                              \ applicable will be ignored"
+        _         -> putStrLn "Nucleotide sequence input, amino acid options if\
+                              \ applicable will be ignored"
+
     contents <- readFile . input $ opts
     -- No redundant newlines in sequence
     let genUnit               = aminoAcids opts
@@ -204,22 +215,42 @@ modifyFasta opts = do
                                          customFilters
                                     else cloneMap
     -- Remove clones with stops in the range
-        cloneMapNoStops       = if (removeStops opts)
-                                    then removeStopsCloneMap
-                                         genUnit stopRange cloneMapCustom
-                                    else cloneMapCustom
+        (cloneMapNoStops, errorString) = if (removeStops opts)
+                                            then removeStopsCloneMap
+                                                 genUnit
+                                                 stopRange
+                                                 cloneMapCustom
+                                            else (cloneMapCustom, Nothing)
+    -- Output Error if necessary
+    case errorString of
+        Nothing -> return ()
+        Just x  -> putStrLn x
+
     -- Remove duplicate sequences
-        cloneMapNoDuplicates  = if (removeDuplicates opts)
+    let cloneMapNoDuplicates  = if (removeDuplicates opts)
                                     then removeDuplicatesCloneMap
                                          cloneMapNoStops
                                     else cloneMapNoStops
+
     -- Remove clones that are highly mutated
-        cloneMapLowMutation   = if (removeHighlyMutated opts)
-                                    then filterHighlyMutated
-                                         genUnit cloneMapNoDuplicates
-                                    else cloneMapNoDuplicates
+        (cloneMapLowMutation, errorString2) = if (removeHighlyMutated opts)
+                                              && ( not
+                                                 . isAminoAcid
+                                                 . aminoAcids
+                                                 $ opts )
+                                                 then filterHighlyMutated
+                                                      genUnit
+                                                      cloneMapNoDuplicates
+                                                 else ( cloneMapNoDuplicates
+                                                      , Nothing )
+
+    -- Output Error if necessary
+    case errorString2 of
+        Nothing -> return ()
+        Just x  -> putStrLn x
+
     -- Remove codons with codons with a certain number of mutations
-        cloneMapNoCodonMut    = if (codonMut > -1)
+    let cloneMapNoCodonMut    = if (codonMut > -1)
                                     then removeCodonMutCount codonMut
                                                              codonMutType
                                                              mutType
@@ -229,10 +260,16 @@ modifyFasta opts = do
         cloneMapNoEmptyClones = removeEmptyClone cloneMapNoCodonMut
 
     -- Convert sequences to amino acids
-        cloneMapAA            = if (convertToAminoAcids opts)
-                                    then convertToAminoAcidsCloneMap
-                                         cloneMapNoEmptyClones
-                                    else cloneMapNoEmptyClones
+        (cloneMapAA, errorString3) = if (convertToAminoAcids opts)
+                                     && (not . isAminoAcid . aminoAcids $ opts)
+                                      then convertToAminoAcidsCloneMap
+                                           cloneMapNoEmptyClones
+                                      else (cloneMapNoEmptyClones, Nothing)
+
+    -- Output Error if necessary
+    case errorString3 of
+        Nothing -> return ()
+        Just x  -> putStrLn x
 
     -- What to do with results
     case (count opts) of
