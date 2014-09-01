@@ -39,25 +39,25 @@ listToMaybe' x       = Just x
 filterHighlyMutated :: GeneticUnit -> CloneMap -> (CloneMap, (Maybe String))
 filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
   where
-    newCloneMap         = M.map (map snd . filter fst . rights) errorCloneMap
-    errorString         = listToMaybe'
-                        . unlines
-                        . filter (not . null)
-                        . map snd
-                        . M.toAscList
-                        . M.map (intercalate "\n" . lefts)
-                        $ errorCloneMap
-    errorCloneMap       = M.mapWithKey assignMutated cloneMap
-    assignMutated k xs  = map (isHighlyMutated (snd k)) xs
-    isHighlyMutated k x =
+    newCloneMap           = M.map (map snd . filter (not . fst) . rights)
+                            errorCloneMap
+    errorString           = listToMaybe'
+                          . unlines
+                          . filter (not . null)
+                          . map snd
+                          . M.toAscList
+                          . M.map (intercalate "\n" . lefts)
+                          $ errorCloneMap
+    errorCloneMap         = M.mapWithKey assignMutated cloneMap
+    assignMutated k xs    = map (isHighlyMutated (snd k)) xs
+    isHighlyMutated !k !x =
         case (readSeq genUnit k, readSeq genUnit x) of
             ((Right a), (Right b)) -> (\n -> Right (n, b))
                                     $ ( (genericLength (fastaSeq a) :: Double)
                                       / 3 )
                                    <= ( ( genericLength
                                         . realMutations (fastaSeq a)
-                                        $ fastaSeq b )
-                                       :: Double )
+                                        $ fastaSeq b ) )
             ((Left a), (Right _)) -> Left (unwords ["Germline: ", a])
             ((Right _), (Left b)) -> Left (unwords ["Sequence: ", b])
             ((Left a), (Left b))  -> Left ( unwords [ "Sequence:"
@@ -82,7 +82,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
         | c == x || c == y = True
         | otherwise        = False
     mutation x y        = zip [1..] . zip x $ y
-    readSeq Nucleotide x = Right (id x)
+    readSeq Nucleotide x = Right x
     readSeq AminoAcid x  = translate 1 x
 
 -- Replace codons that have more than CodonMut mutations (make them "---"
