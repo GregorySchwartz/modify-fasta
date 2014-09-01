@@ -119,7 +119,9 @@ options = Options
          <> value ""
          <> help "A custom filter. Can take a list of format\
                  \ \"(Int, String)&&(Int, String)&& ...\" and so on. The String\
-                 \ is in regex format (POSIX extended)!\
+                 \ is in regex format (POSIX extended), so if the entire\
+                 \ string 'a' is in the whole field, then you need to input\
+                 \ '^a$' for the beginning to the end!\
                  \ The first in the tuple is the location of the field\
                  \ (1 indexed, split by '|'). If you want to apply to\
                  \ the entire header, either have the location as 0 or\

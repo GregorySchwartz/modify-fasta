@@ -24,19 +24,15 @@ import Data.Fasta.String
 import Types
 import Diversity
 
+-- Check if the data structure is Right
+isRight' :: Either a b -> Bool
+isRight' (Right _)       = True
+isRight' _               = False
+
 -- Altered version of listToMaybe
 listToMaybe' :: [a] -> Maybe [a]
 listToMaybe' []      = Nothing
 listToMaybe' x       = Just x
-
--- Returns the string of messed up sequences after trying to translate
-getErrorString :: CloneMap -> Maybe String
-getErrorString = listToMaybe'
-               . unlines
-               . filter (not . null)
-               . map snd
-               . M.toAscList
-               . M.map (intercalate "\n" . lefts . map translate)
 
 -- Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
@@ -87,7 +83,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
         | otherwise        = False
     mutation x y        = zip [1..] . zip x $ y
     readSeq Nucleotide x = Right (id x)
-    readSeq AminoAcid x  = translate x
+    readSeq AminoAcid x  = translate 1 x
 
 -- Replace codons that have more than CodonMut mutations (make them "---"
 -- codons).
@@ -124,18 +120,22 @@ removeStopsCloneMap :: GeneticUnit
 removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
                                                     , errorString )
   where
-    errorString = getErrorString cloneMap
+    errorString = listToMaybe'
+                . unlines
+                . filter (not . null)
+                . map snd
+                . M.toAscList
+                . M.map (intercalate "\n" . lefts . map (translate 1))
+                $ cloneMap
     newCloneMap = M.map (filter (filterStops genUnit)) cloneMap
-    filterStops Nucleotide x = (isRight' . translate $ x)
+    filterStops Nucleotide x = (isRight' . translate 1 $ x)
                             && ( not
                                . elem '*'
                                . take stopRange
                                . fastaSeq
                                . fromEither
-                               . translate ) x
+                               . translate 1 ) x
     filterStops AminoAcid  x = not . elem '*' . take stopRange . fastaSeq $ x
-    isRight' (Right _)       = True
-    isRight' _               = False
     fromEither (Right x)     = x
     fromEither (Left _)      = error "This should not have happened"
 
@@ -199,14 +199,24 @@ removeEmptyClone = M.filter (not . null)
 convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, (Maybe String))
 convertToAminoAcidsCloneMap !cloneMap = (newCloneMap, errorString)
   where
-    errorString = getErrorString cloneMap
-    newCloneMap = M.mapKeys keyMap
-                . M.map (map translateFastaSequence)
-                $ cloneMap
-    keyMap (x, y) = (x, translateFastaSequence y)
-    translateFastaSequence x = x { fastaSeq = fastaSeq
-                                            . fromEither
-                                            . translate
-                                            $ x }
+    newCloneMap   = M.mapKeysWith (++) (\(x, y) -> (x, fromEither y))
+                  . M.filterWithKey (\(_, y) _ -> isRight' y)
+                  . M.map rights
+                  $ errorCloneMap
+    errorString   = listToMaybe'
+                  . concat
+                  . map snd
+                  . M.toAscList
+                  . M.mapWithKey (\(_, y) v -> (++) (eitherToString y)
+                                             . concat
+                                             . lefts
+                                             $ v )
+                  $ errorCloneMap
+    errorCloneMap = M.mapKeys keyMap
+                  . M.map (map (translate 1))
+                  $ cloneMap
+    keyMap (x, y) = (x, translate 1 y)
+    eitherToString (Right _) = ""
+    eitherToString (Left x) = x
     fromEither (Right x)     = x
     fromEither (Left _)      = error "This should not have happened"
