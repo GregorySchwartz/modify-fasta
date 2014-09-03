@@ -82,14 +82,14 @@ options = Options
           ( long "remove-duplicates"
          <> short 'd'
          <> help "Whether to remove duplicate sequences" )
-      <*> option
+      <*> option auto
           ( long "input-stop-range"
          <> short 'r'
          <> metavar "[106]|INT"
          <> value 106
          <> help "Only search for stops with remove-stops up to this\
                  \ amino acid position" )
-      <*> option
+      <*> option auto
           ( long "input-codon-mut"
          <> short 'c'
          <> metavar "[-1]|0|1|2|3"
@@ -140,7 +140,7 @@ options = Options
          <> help "Whether to remove the sequences containing the custom filter\
                  \ as opposed to remove the sequences that don't contain the\
                  \ filter" )
-      <*> option
+      <*> option auto
           ( long "gene-allele-field"
          <> short 'V'
          <> metavar "[1]|INT"

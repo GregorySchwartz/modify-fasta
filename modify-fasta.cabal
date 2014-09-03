@@ -18,7 +18,7 @@ cabal-version:       >=1.8
 executable modify-fasta
   main-is:             Main.hs
   -- other-modules:       
-  build-depends:       base >=4.5, containers >=0.4, mtl >=2.0, split >=0.2, optparse-applicative >=0.7, fasta >= 0.5, regex-tdfa >=1.2.0 
+  build-depends:       base ==4.6.*, containers ==0.5.*, mtl ==2.1.*, split ==0.2.*, optparse-applicative ==0.10.*, fasta == 0.5.*, regex-tdfa ==1.2.*
 
   -- Directories containing source files.
   hs-source-dirs:      src
