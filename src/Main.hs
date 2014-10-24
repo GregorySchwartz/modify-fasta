@@ -4,6 +4,9 @@
 -- Takes a CLIP fasta file or fasta file and filters the fasta file in
 -- several optional ways.
 
+-- Built-in
+import qualified Data.Map as M
+
 -- Cabal
 import Options.Applicative
 import Data.Fasta.String.Parse
@@ -272,6 +275,11 @@ modifyFasta opts = do
     case errorString3 of
         Nothing -> return ()
         Just x  -> putStrLn x
+
+    -- Break if there are no sequences to output
+    case (M.null cloneMapAA) of
+        True -> error "No sequences left! Nothing written."
+        False -> return ()
 
     -- What to do with results
     case (count opts) of
