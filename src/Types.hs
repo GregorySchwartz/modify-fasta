@@ -6,7 +6,7 @@
 module Types where
 
 -- Algebraic
-data GeneticUnit   = AminoAcid | Nucleotide
+data GeneticUnit   = AminoAcid | Nucleotide deriving (Read, Show)
 
 -- Basic
 type ID         = Int

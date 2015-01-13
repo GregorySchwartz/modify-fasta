@@ -20,7 +20,7 @@ import qualified Data.List.Split as Split
 
 -- Command line arguments
 data Options = Options { input               :: String
-                       , aminoAcids          :: GeneticUnit
+                       , aminoAcids          :: String
                        , clipFasta           :: Bool
                        , convertToAminoAcids :: Bool
                        , removeN             :: Bool
@@ -49,9 +49,10 @@ options = Options
          <> metavar "FILE"
          <> value ""
          <> help "The input fasta file or CLIP fasta file" )
-      <*> flag Nucleotide AminoAcid
-          ( long "amino-acids"
-         <> short 'a'
+      <*> strOption
+          ( long "unit"
+         <> short 'u'
+         <> metavar "AminoAcid|Nucleotide"
          <> help "Whether these sequences are composed of\
                  \ amino acids (AminoAcid) or nucleotides (Nucleotide)" )
       <*> switch
@@ -179,16 +180,11 @@ isAminoAcid _         = False
 
 modifyFasta :: Options -> IO ()
 modifyFasta opts = do
-    -- Checking if user knows what he or she is doing
-    case (aminoAcids opts) of
-        AminoAcid -> putStrLn "Amino acid sequence input, nucleotide options if\
-                              \ applicable will be ignored"
-        _         -> putStrLn "Nucleotide sequence input, amino acid options if\
-                              \ applicable will be ignored"
-
-    contents <- readFile . input $ opts
+    contents <- if (null . input $ opts)
+                    then getContents
+                    else readFile . input $ opts
     -- No redundant newlines in sequence
-    let genUnit               = aminoAcids opts
+    let genUnit               = read . aminoAcids $ opts
         stopRange             = inputStopRange opts
         codonMut              = inputCodonMut opts
         codonMutType          = inputCodonMutType opts
@@ -229,7 +225,7 @@ modifyFasta opts = do
     -- Output Error if necessary
     case errorString of
         Nothing -> return ()
-        Just x  -> putStrLn x
+        Just x  -> error x
 
     -- Remove duplicate sequences
     let cloneMapNoDuplicates  = if (removeDuplicates opts)
@@ -241,8 +237,7 @@ modifyFasta opts = do
         (cloneMapLowMutation, errorString2) = if (removeHighlyMutated opts)
                                               && ( not
                                                  . isAminoAcid
-                                                 . aminoAcids
-                                                 $ opts )
+                                                 $ genUnit )
                                                  then filterHighlyMutated
                                                       genUnit
                                                       cloneMapNoDuplicates
@@ -252,7 +247,7 @@ modifyFasta opts = do
     -- Output Error if necessary
     case errorString2 of
         Nothing -> return ()
-        Just x  -> putStrLn x
+        Just x  -> error x
 
     -- Remove codons with codons with a certain number of mutations
     let cloneMapNoCodonMut    = if (codonMut > -1)
@@ -266,7 +261,7 @@ modifyFasta opts = do
 
     -- Convert sequences to amino acids
         (cloneMapAA, errorString3) = if (convertToAminoAcids opts)
-                                     && (not . isAminoAcid . aminoAcids $ opts)
+                                     && (not . isAminoAcid $ genUnit)
                                       then convertToAminoAcidsCloneMap
                                            cloneMapNoEmptyClones
                                       else (cloneMapNoEmptyClones, Nothing)
@@ -274,7 +269,7 @@ modifyFasta opts = do
     -- Output Error if necessary
     case errorString3 of
         Nothing -> return ()
-        Just x  -> putStrLn x
+        Just x  -> error x
 
     -- Break if there are no sequences to output
     case (M.null cloneMapAA) of
@@ -298,7 +293,9 @@ modifyFasta opts = do
                                    else  printFasta cloneMapAA
 
             -- Save results
-            writeFile (output opts) outputString
+            if (null . output $ opts)
+                then putStrLn outputString
+                else writeFile (output opts) outputString
 
 main :: IO ()
 main = execParser opts >>= modifyFasta
