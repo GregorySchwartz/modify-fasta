@@ -28,6 +28,7 @@ data Options = Options { input               :: String
                        , removeHighlyMutated :: Bool
                        , removeStops         :: Bool
                        , removeDuplicates    :: Bool
+                       , removeOutOfFrame    :: Bool
                        , inputStopRange      :: Int
                        , inputCodonMut       :: CodonMut
                        , inputCodonMutType   :: String
@@ -86,6 +87,11 @@ options = Options
           ( long "remove-duplicates"
          <> short 'd'
          <> help "Whether to remove duplicate sequences" )
+      <*> switch
+          ( long "remove-out-of-frame"
+         <> short 'O'
+         <> help "Whether to remove sequences that are out of frame--if the\
+                 \ sequences or number of gaps is not divisible by 3" )
       <*> option auto
           ( long "input-stop-range"
          <> short 'r'
@@ -195,16 +201,25 @@ modifyFasta opts = do
                                     else (removeGermlines opts)
 
     -- Initiate CloneMap
-        cloneMapNs            = if (not . clipFasta $ opts)
+        cloneMapFrames        = if (not . clipFasta $ opts)
                                     then addFillerGermlines
                                        . parseFasta
                                        $ contents
                                     else parseCLIPFasta contents
 
+    -- Remove out of frame sequences
+        cloneMapInFrame       = if (removeOutOfFrame opts && ( not
+                                                             . isAminoAcid
+                                                             $ genUnit ) )
+                                    then removeOutOfFrameSeqs cloneMapFrames
+                                    else cloneMapFrames
+
     -- Remove Ns from CloneMap
-        cloneMap              = if (removeN opts)
-                                    then removeCLIPNs cloneMapNs
-                                    else cloneMapNs
+        cloneMap              = if (removeN opts && ( not
+                                                    . isAminoAcid
+                                                    $ genUnit ) )
+                                    then removeCLIPNs cloneMapInFrame
+                                    else cloneMapInFrame
 
     -- Start filtering out sequences
     -- Include only custom filter sequences

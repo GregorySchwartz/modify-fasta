@@ -151,6 +151,16 @@ removeDuplicatesCloneMap cloneMap = M.map
                  . M.toAscList
                  $ cloneMap
 
+-- Remove out of frame sequences
+removeOutOfFrameSeqs :: CloneMap -> CloneMap
+removeOutOfFrameSeqs = M.map (filter isInFrame)
+  where
+    isInFrame  = (== (0 :: Int))
+               . mod 3
+               . genericLength
+               . filter (\x -> elem x ".-")
+               . fastaSeq
+
 -- Remove sequences that do not contain the string customFilter in the
 -- customField location, split by "|". Note that this is 1 indexed and
 -- 0 means to search the entire header for the customFilter. If the
