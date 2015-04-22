@@ -23,7 +23,7 @@ data Options = Options { input               :: String
                        , aminoAcids          :: String
                        , clipFasta           :: Bool
                        , convertToAminoAcids :: Bool
-                       , removeN             :: Bool
+                       , removeTheNs         :: Bool
                        , removeGermlines     :: Bool
                        , removeHighlyMutated :: Bool
                        , removeStops         :: Bool
@@ -215,9 +215,9 @@ modifyFasta opts = do
                                     else cloneMapFrames
 
     -- Remove Ns from CloneMap
-        cloneMap              = if (removeN opts && ( not
-                                                    . isAminoAcid
-                                                    $ genUnit ) )
+        cloneMap              = if (removeTheNs opts && ( not
+                                                        . isAminoAcid
+                                                        $ genUnit ) )
                                     then removeCLIPNs cloneMapInFrame
                                     else cloneMapInFrame
 
