@@ -218,10 +218,6 @@ modifyFastaList opts = do
                         then isInFrame x
                         else True
 
-    -- Remove Ns from CloneMap
-        noNs x = if removeTheNs opts && (not . isAminoAcid $ genUnit)
-                    then removeN x
-                    else x
     -- Start filtering out sequences
     -- Include only custom filter sequences
         customFilter x = if not . null $ customFilters
@@ -239,13 +235,21 @@ modifyFastaList opts = do
                              x
                         else True
 
+    -- Remove Ns from fasta list
+        noNs x = if removeTheNs opts && (not . isAminoAcid $ genUnit)
+                    then removeN x
+                    else x
+
+    -- Convert to amino acids
+        ntToaa x = if convertToAminoAcids opts
+                        then convertToAminoAcidsFastaSequence x
+                        else x
+
     -- Filter
     runEffect $ P.fromHandle hIn
             >-> pipesFasta hIn
             >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
-            >-> P.map ( showFasta
-                      . (\x -> if convertToAminoAcids opts then convertToAminoAcidsFastaSequence x else x)
-                      . noNs )
+            >-> P.map (showFasta . ntToaa . noNs)
             >-> P.toHandle hOut
 
     -- Finish up by closing file if written
