@@ -6,21 +6,27 @@
 
 -- Built-in
 import qualified Data.Map as M
+import qualified System.IO as IO
+import Control.Monad
 
 -- Cabal
 import Options.Applicative
-import Data.Fasta.String.Parse
+import Data.Fasta.String
+import Pipes
+import qualified Pipes.Prelude as P
+import qualified Data.List.Split as Split
 
 -- Local
 import Types
 import Utility
 import FilterCloneMap
+import FilterFastaList
 import Print
-import qualified Data.List.Split as Split
 
 -- Command line arguments
 data Options = Options { input               :: String
                        , aminoAcids          :: String
+                       , legacy              :: Bool
                        , clipFasta           :: Bool
                        , convertToAminoAcids :: Bool
                        , removeTheNs         :: Bool
@@ -57,10 +63,18 @@ options = Options
          <> help "Whether these sequences are composed of\
                  \ amino acids (AminoAcid) or nucleotides (Nucleotide)" )
       <*> switch
+          ( long "legacy"
+         <> short 'L'
+         <> help "Whether to use the legacy version with no pipes. Note: The\
+                 \ legacy version supports more features but is greedy\
+                 \ in terms of speed and memory. Use only if really needed.\
+                 \ Features that are legacy only are noted in this\
+                 \ documentation" )
+      <*> switch
           ( long "clip-fasta"
          <> short 'A'
          <> help "Whether the input is a clip fasta file (has germline >>\
-                 \ sequences)" )
+                 \ sequences). LEGACY ONLY" )
       <*> switch
           ( long "convert-to-amino-acids"
          <> short 'C'
@@ -73,12 +87,12 @@ options = Options
       <*> switch
           ( long "remove-germlines"
          <> short 'g'
-         <> help "Whether to remove germlines" )
+         <> help "Whether to remove germlines. LEGACY ONLY" )
       <*> switch
           ( long "remove-highly-mutated"
          <> short 'h'
          <> help "Whether to remove highly mutated clone sequences (a third\
-                 \ of their sequence are different amino acids)" )
+                 \ of their sequence are different amino acids). LEGACY ONLY" )
       <*> switch
           ( long "remove-stops"
          <> short 's'
@@ -86,7 +100,7 @@ options = Options
       <*> switch
           ( long "remove-duplicates"
          <> short 'd'
-         <> help "Whether to remove duplicate sequences" )
+         <> help "Whether to remove duplicate sequences. LEGACY ONLY" )
       <*> switch
           ( long "remove-out-of-frame"
          <> short 'O'
@@ -106,7 +120,7 @@ options = Options
          <> value (-1)
          <> help "Only include codons with this many mutations or less or more,\
                  \ depending on input-codon-mut-type (-1 is the same as include\
-                 \ all codons). Converts the codon to gaps" )
+                 \ all codons). Converts the codon to gaps. LEGACY ONLY" )
       <*> strOption
           ( long "input-codon-mut-type"
          <> short 'T'
@@ -114,14 +128,15 @@ options = Options
          <> value "="
          <> help "Only include codons with this many mutations (=)\
                  \ (or lesser (<) or greater (>), depending on\
-                 \ input-codon-mut). Converts the codon to gaps" )
+                 \ input-codon-mut). Converts the codon to gaps. LEGACY ONLY" )
       <*> strOption
           ( long "input-mut-type"
          <> short 'M'
          <> metavar "[All]|Silent|Replacement"
          <> value "All"
          <> help "Only include codons with this all mutations (All),\
-                 \ (or silent (Silent) or replacement (Replacement))" )
+                 \ (or silent (Silent) or replacement (Replacement)). LEGACY\
+                 \ ONLY" )
       <*> strOption
           ( long "input-custom-filter"
          <> short 'f'
@@ -143,7 +158,7 @@ options = Options
           ( long "custom-germline"
          <> short 'G'
          <> help "Whether to apply the custom filter to germlines (>>)\
-                 \ instead of sequences (>)" )
+                 \ instead of sequences (>). LEGACY ONLY" )
       <*> switch
           ( long "custom-remove"
          <> short 'm'
@@ -155,12 +170,12 @@ options = Options
          <> short 'V'
          <> metavar "[1]|INT"
          <> value 1
-         <> help "The field (1 indexed) of the gene allele name" )
+         <> help "The field (1 indexed) of the gene allele name. LEGACY ONLY" )
       <*> switch
           ( long "count"
          <> short 'v'
          <> help "Do not save output, just count genes and alleles from\
-                 \ the results. Requires gene-allele-field" )
+                 \ the results. Requires gene-allele-field. LEGACY ONLY" )
       <*> strOption
           ( long "output"
          <> short 'o'
@@ -184,9 +199,61 @@ isAminoAcid :: GeneticUnit -> Bool
 isAminoAcid AminoAcid = True
 isAminoAcid _         = False
 
-modifyFasta :: Options -> IO ()
-modifyFasta opts = do
-    contents <- if (null . input $ opts)
+modifyFastaList :: Options -> IO ()
+modifyFastaList opts = do
+    hIn  <- if null . input $ opts
+                then return IO.stdin
+                else IO.openFile (input opts) IO.ReadMode
+    hOut <- if null . output $ opts
+                then return IO.stdout
+                else IO.openFile (output opts) IO.WriteMode
+    let genUnit               = read . aminoAcids $ opts
+        stopRange             = inputStopRange opts
+        customFilters         = customFiltersIntParser
+                              . inputCustomFilter
+                              $ opts
+
+    -- Remove out of frame sequences
+        seqInFrame x = if removeOutOfFrame opts && (not . isAminoAcid $ genUnit)
+                        then isInFrame x
+                        else True
+
+    -- Remove Ns from CloneMap
+        noNs x = if removeTheNs opts && (not . isAminoAcid $ genUnit)
+                    then removeN x
+                    else x
+    -- Start filtering out sequences
+    -- Include only custom filter sequences
+        customFilter x = if not . null $ customFilters
+                            then hasAllCustomFilters
+                                 (customRemove opts)
+                                 customFilters
+                                 x
+                            else True
+
+    -- Remove clones with stops in the range
+        noStops x = if removeStops opts
+                        then hasNoStops
+                             genUnit
+                             stopRange
+                             x
+                        else True
+
+    -- Filter
+    runEffect $ P.fromHandle hIn
+            >-> pipesFasta hIn
+            >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
+            >-> P.map ( showFasta
+                      . (\x -> if convertToAminoAcids opts then convertToAminoAcidsFastaSequence x else x)
+                      . noNs )
+            >-> P.toHandle hOut
+
+    -- Finish up by closing file if written
+    unless (null . output $ opts) (IO.hClose hOut)
+
+modifyFastaCloneMap :: Options -> IO ()
+modifyFastaCloneMap opts = do
+    contents <- if null . input $ opts
                     then getContents
                     else readFile . input $ opts
     -- No redundant newlines in sequence
@@ -196,16 +263,16 @@ modifyFasta opts = do
         codonMutType          = inputCodonMutType opts
         mutType               = inputMutType opts
         customFilters         = customFiltersIntParser $ inputCustomFilter opts
-        removeGermlinesFlag   = if (not . clipFasta $ opts)
+        removeGermlinesFlag   = if not . clipFasta $ opts
                                     then True
-                                    else (removeGermlines opts)
+                                    else removeGermlines opts
 
     -- Initiate CloneMap
-        cloneMapFrames        = if (not . clipFasta $ opts)
-                                    then addFillerGermlines
-                                       . parseFasta
-                                       $ contents
-                                    else parseCLIPFasta contents
+        cloneMapFrames = if not . clipFasta $ opts
+                            then addFillerGermlines
+                               . parseFasta
+                               $ contents
+                            else parseCLIPFasta contents
 
     -- Remove out of frame sequences
         cloneMapInFrame       = if (removeOutOfFrame opts && ( not
@@ -223,7 +290,7 @@ modifyFasta opts = do
 
     -- Start filtering out sequences
     -- Include only custom filter sequences
-        cloneMapCustom        = if (not . null $ customFilters)
+        cloneMapCustom        = if not . null $ customFilters
                                     then removeAllCustomFilters
                                          (customGermline opts)
                                          (customRemove opts)
@@ -231,7 +298,7 @@ modifyFasta opts = do
                                          customFilters
                                     else cloneMap
     -- Remove clones with stops in the range
-        (cloneMapNoStops, errorString) = if (removeStops opts)
+        (cloneMapNoStops, errorString) = if removeStops opts
                                             then removeStopsCloneMap
                                                  genUnit
                                                  stopRange
@@ -243,7 +310,7 @@ modifyFasta opts = do
         Just x  -> error x
 
     -- Remove duplicate sequences
-    let cloneMapNoDuplicates  = if (removeDuplicates opts)
+    let cloneMapNoDuplicates  = if removeDuplicates opts
                                     then removeDuplicatesCloneMap
                                          cloneMapNoStops
                                     else cloneMapNoStops
@@ -265,7 +332,7 @@ modifyFasta opts = do
         Just x  -> error x
 
     -- Remove codons with codons with a certain number of mutations
-    let cloneMapNoCodonMut    = if (codonMut > -1)
+    let cloneMapNoCodonMut    = if codonMut > -1
                                     then removeCodonMutCount codonMut
                                                              codonMutType
                                                              mutType
@@ -287,12 +354,12 @@ modifyFasta opts = do
         Just x  -> error x
 
     -- Break if there are no sequences to output
-    case (M.null cloneMapAA) of
+    case M.null cloneMapAA of
         True -> error "No sequences left! Nothing written."
         False -> return ()
 
     -- What to do with results
-    case (count opts) of
+    case count opts of
         True -> do
             -- Print results
             let outputString = printSequenceCount
@@ -308,9 +375,14 @@ modifyFasta opts = do
                                    else  printFasta cloneMapAA
 
             -- Save results
-            if (null . output $ opts)
+            if null . output $ opts
                 then putStrLn outputString
                 else writeFile (output opts) outputString
+
+modifyFasta :: Options -> IO ()
+modifyFasta opts = if legacy opts
+                    then modifyFastaCloneMap opts
+                    else modifyFastaList opts
 
 main :: IO ()
 main = execParser opts >>= modifyFasta

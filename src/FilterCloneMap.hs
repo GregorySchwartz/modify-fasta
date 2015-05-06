@@ -36,7 +36,7 @@ listToMaybe' x       = Just x
 
 -- Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
-filterHighlyMutated :: GeneticUnit -> CloneMap -> (CloneMap, (Maybe String))
+filterHighlyMutated :: GeneticUnit -> CloneMap -> (CloneMap, Maybe String)
 filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
   where
     newCloneMap           = M.map (map snd . filter (not . fst) . rights)
@@ -49,7 +49,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
                           . M.map (intercalate "\n" . lefts)
                           $ errorCloneMap
     errorCloneMap         = M.mapWithKey assignMutated cloneMap
-    assignMutated k xs    = map (isHighlyMutated (snd k)) xs
+    assignMutated k       = map (isHighlyMutated (snd k))
     isHighlyMutated !k !x =
         case (readSeq genUnit k, readSeq genUnit x) of
             ((Right a), (Right b)) -> (\n -> Right (n, b))
@@ -90,7 +90,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
 removeCodonMutCount :: CodonMut -> String -> String -> CloneMap -> CloneMap
 removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
   where
-    mapRemove (_, germ) clones   = map (removeCodon germ) clones
+    mapRemove (_, germ)          = map (removeCodon germ)
     removeCodon germ clone       = clone { fastaSeq
                                          = remove (fastaSeq germ)
                                          . fastaSeq $ clone }
@@ -129,21 +129,20 @@ removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
                 $ cloneMap
     newCloneMap = M.map (filter (filterStops genUnit)) cloneMap
     filterStops Nucleotide x = (isRight' . translate 1 $ x)
-                            && ( not
-                               . elem '*'
+                            && ( notElem '*'
                                . take stopRange
                                . fastaSeq
                                . fromEither
                                . translate 1 ) x
-    filterStops AminoAcid  x = not . elem '*' . take stopRange . fastaSeq $ x
+    filterStops AminoAcid  x = notElem '*' . take stopRange . fastaSeq $ x
     fromEither (Right x)     = x
-    fromEither (Left _)      = error "This should not have happened"
+    fromEither (Left x)      = error x
 
 -- Remove duplicate sequences
 removeDuplicatesCloneMap :: CloneMap -> CloneMap
 removeDuplicatesCloneMap cloneMap = M.map
-                                    (filter (\x -> S.member x duplicateSet))
-                                  $ cloneMap
+                                    (filter (`S.member` duplicateSet))
+                                    cloneMap
   where
     duplicateSet = S.fromList
                  . nubBy (\x y -> fastaSeq x == fastaSeq y)
@@ -158,7 +157,7 @@ removeOutOfFrameSeqs = M.map (filter isInFrame)
     isInFrame  = (== (0 :: Int))
                . mod 3
                . genericLength
-               . filter (\x -> elem x ".-")
+               . filter (`notElem` ".-")
                . fastaSeq
 
 -- Remove sequences that do not contain the string customFilter in the
@@ -197,7 +196,7 @@ removeAllCustomFilters :: Bool
                        -> CloneMap
                        -> [(Maybe Int, String)]
                        -> CloneMap
-removeAllCustomFilters germ rm cloneMap = foldl' filterMap cloneMap
+removeAllCustomFilters germ rm = foldl' filterMap
   where
     filterMap acc (x, y) = removeCustomFilter germ rm x y acc
 
@@ -206,7 +205,7 @@ removeEmptyClone :: CloneMap -> CloneMap
 removeEmptyClone = M.filter (not . null)
 
 -- Convert sequences to amino acids
-convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, (Maybe String))
+convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, Maybe String)
 convertToAminoAcidsCloneMap !cloneMap = (newCloneMap, errorString)
   where
     newCloneMap   = M.mapKeysWith (++) (\(x, y) -> (x, fromEither y))
@@ -214,8 +213,7 @@ convertToAminoAcidsCloneMap !cloneMap = (newCloneMap, errorString)
                   . M.map rights
                   $ errorCloneMap
     errorString   = listToMaybe'
-                  . concat
-                  . map snd
+                  . concatMap snd
                   . M.toAscList
                   . M.mapWithKey (\(_, y) v -> (++) (eitherToString y)
                                              . concat
@@ -229,4 +227,4 @@ convertToAminoAcidsCloneMap !cloneMap = (newCloneMap, errorString)
     eitherToString (Right _) = ""
     eitherToString (Left x) = x
     fromEither (Right x)     = x
-    fromEither (Left _)      = error "This should not have happened"
+    fromEither (Left x)      = error x
