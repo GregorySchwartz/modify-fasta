@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                modify-fasta
-version:             0.5.0.1
+version:             0.5.0.2
 synopsis:            Modify fasta (and CLIP) files in several optional ways
 -- description:         
 homepage:            https://github.com/GregorySchwartz/modify-fasta

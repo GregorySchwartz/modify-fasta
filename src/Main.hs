@@ -246,10 +246,11 @@ modifyFastaList opts = do
                         else x
 
     -- Filter
-    runEffect $ P.fromHandle hIn
-            >-> pipesFasta hIn
-            >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
-            >-> P.map (showFasta . ntToaa . noNs)
+    runEffect $ ( ( P.fromHandle hIn
+                >-> pipesFasta hIn
+                >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
+                >-> P.map (showFasta . ntToaa . noNs) )
+                 >> yield "" )  -- want that newline at the end
             >-> P.toHandle hOut
 
     -- Finish up by closing file if written
