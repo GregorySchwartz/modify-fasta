@@ -1,8 +1,7 @@
--- Modify Fasta
--- By G.W. Schwartz
+-- modify-fasta
+-- By Gregory W. Schwartz
 
--- Takes a CLIP fasta file or fasta file and filters the fasta file in
--- several optional ways.
+-- Takes a fasta file filters the fasta file in several ways.
 
 -- Built-in
 import qualified Data.Map as M
@@ -395,4 +394,4 @@ main = execParser opts >>= modifyFasta
     opts = info (helper <*> options)
       ( fullDesc
      <> progDesc "Modify fasta (and CLIP) files in several optional ways"
-     <> header "Modify Fasta, Gregory W. Schwartz" )
+     <> header "modify-fasta, Gregory W. Schwartz" )
