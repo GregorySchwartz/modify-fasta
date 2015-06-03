@@ -1,5 +1,5 @@
 -- Print module
--- By G.W. Schwartz
+-- By Gregory W. Schwartz
 --
 -- Collection of functions for the printing of data (converting data
 -- structures into strings for use with writing to output files).

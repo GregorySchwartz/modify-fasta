@@ -3,7 +3,8 @@
 --
 -- Collects utility functions for the main files
 
-module Utility where
+module Utility ( addLengthHeader
+               , addFillerGermlines ) where
 
 -- Built-in
 import qualified Data.Map as M
@@ -11,7 +12,14 @@ import qualified Data.Map as M
 -- Cabal
 import Data.Fasta.String
 
--- Adds filler germlines to normal fasta files
+-- | Adds the length of a sequence to the header of that sequence
+addLengthHeader :: FastaSequence -> FastaSequence
+addLengthHeader fSeq = fSeq { fastaHeader = fastaHeader fSeq
+                                         ++ "|"
+                                         ++ (show . length . fastaSeq $ fSeq)
+                            }
+
+-- | Adds filler germlines to normal fasta files
 addFillerGermlines :: [FastaSequence] -> CloneMap
 addFillerGermlines = M.fromList . labelGermlines . map insertDummy
   where

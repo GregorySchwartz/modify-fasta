@@ -28,6 +28,7 @@ data Options = Options { input               :: String
                        , legacy              :: Bool
                        , clipFasta           :: Bool
                        , convertToAminoAcids :: Bool
+                       , addLength           :: Bool
                        , removeTheNs         :: Bool
                        , removeGermlines     :: Bool
                        , removeHighlyMutated :: Bool
@@ -79,6 +80,12 @@ options = Options
          <> short 'C'
          <> help "Whether to convert the filtered sequences to amino acids\
                  \ in the output" )
+      <*> switch
+          ( long "add-length"
+         <> short 'l'
+         <> help "Whether to append the length of the sequence to the end of\
+                 \ the header, calculated after convert-to-amin-acids\
+                 \ if enabled" )
       <*> switch
           ( long "remove-N"
          <> short 'N'
@@ -244,11 +251,16 @@ modifyFastaList opts = do
                         then convertToAminoAcidsFastaSequence x
                         else x
 
+    -- Include sequence length in header at the end
+        includeLength x = if addLength opts
+                            then addLengthHeader x
+                            else x
+
     -- Filter
     runEffect $ ( ( P.fromHandle hIn
                 >-> pipesFasta hIn
                 >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
-                >-> P.map (showFasta . ntToaa . noNs) )
+                >-> P.map (showFasta . includeLength . ntToaa . noNs) )
                  >> yield "" )  -- want that newline at the end
             >-> P.toHandle hOut
 
