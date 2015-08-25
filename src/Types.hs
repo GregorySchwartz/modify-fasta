@@ -12,3 +12,8 @@ data GeneticUnit   = AminoAcid | Nucleotide deriving (Read, Show)
 type ID         = Int
 type Codon      = String
 type CodonMut   = Int
+type Field      = Int
+type Start      = Int
+
+-- Advanced
+type FillInValue = (Field, Start, Char)
