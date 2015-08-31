@@ -41,6 +41,7 @@ data Options = Options { input                   :: String
                        , inputCodonMut           :: CodonMut
                        , inputCodonMutType       :: String
                        , inputMutType            :: String
+                       , inputChangeField       :: String
                        , inputCustomFilter       :: String
                        , customGermlineFlag      :: Bool
                        , customRemoveFlag        :: Bool
@@ -81,7 +82,7 @@ options = Options
           ( long "convert-to-amino-acids"
          <> short 'C'
          <> help "Whether to convert the filtered sequences to amino acids\
-                 \ in the output" )
+                 \ in the output. Applied last" )
       <*> option auto
           ( long "fill-in"
          <> short 'F'
@@ -161,6 +162,19 @@ options = Options
                  \ (or silent (Silent) or replacement (Replacement)). LEGACY\
                  \ ONLY" )
       <*> strOption
+          ( long "input-change-field"
+         <> short 'e'
+         <> metavar "((FIELD (Int), VALUE (String))"
+         <> value ""
+         <> help "Change a field to a match, so a regex \"ch.*_\" to field 2\
+                 \ of \">abc|brie_cheese_dude\" would result in\
+                 \ \">abc|cheese_\". Useful for getting specific properties\
+                 \ from a field. Can take a list of format\
+                 \ \"(Int, String)&&(Int, String)&& ...\" and so on. The String\
+                 \ is in regex format (POSIX extended).\
+                 \ The first in the tuple is the location of the field\
+                 \ (1 indexed, split by '|')." )
+      <*> strOption
           ( long "input-custom-filter"
          <> short 'f'
          <> metavar "((FIELD (Int), VALUE (String))"
@@ -206,11 +220,9 @@ options = Options
          <> value ""
          <> help "The output fasta file" )
 
-customFiltersIntParser :: String -> [(Maybe Int, String)]
-customFiltersIntParser "" = []
-customFiltersIntParser s = map (\x -> (first x, second x))
-                         . Split.splitOn "&&"
-                         $ s
+fieldIntParser :: String -> [(Maybe Int, String)]
+fieldIntParser "" = []
+fieldIntParser s  = map (\x -> (first x, second x)) . Split.splitOn "&&" $ s
   where
     first x
         | (head . Split.splitOn "," $ x) == "(" = Nothing
@@ -232,50 +244,58 @@ modifyFastaList opts = do
                 else IO.openFile (output opts) IO.WriteMode
     let genUnit               = read . aminoAcidsFlag $ opts
         stopRange             = inputStopRange opts
-        customFilters         = customFiltersIntParser
-                              . inputCustomFilter
-                              $ opts
+        customFilters         = fieldIntParser . inputCustomFilter $ opts
+        changeFields          = fieldIntParser . inputChangeField $ opts
 
-    -- Remove out of frame sequences
+        -- Remove out of frame sequences
         seqInFrame x = not ( removeOutOfFrameFlag opts
                           && (not . isAminoAcid $ genUnit)
                            )
                     || isInFrame x
 
-    -- Start filtering out sequences
-    -- Include only custom filter sequences
+        -- Start filtering out sequences
+        -- Include only custom filter sequences
         customFilter x = null customFilters
                       || hasAllCustomFilters (customRemoveFlag opts) customFilters x
 
-    -- Remove clones with stops in the range
+        -- Remove clones with stops in the range
         noStops x = not (removeStopsFlag opts) || hasNoStops genUnit stopRange x
 
-    -- Remove Ns from fasta list
+        -- Remove Ns from fasta list
         noNs x = if removeTheNsFlag opts && (not . isAminoAcid $ genUnit)
                     then removeN x
                     else x
 
-    -- Convert to amino acids
-        ntToaa x = if convertToAminoAcidsFlag opts
-                        then convertToAminoAcidsFastaSequence x
-                        else x
+        -- Change fasta headers with match
+        changeHeader x = if not . null $ changeFields
+                             then changeAllFields x changeFields
+                             else x
 
-    -- Fill in bad characters at the requested section with possible
-    -- replacements
+        -- Fill in bad characters at the requested section with possible
+        -- replacements
         fillIn x = case inputFillIn opts of
                     (-1, -1, 'X') -> x
                     (f, s, c)     -> fillInSequence f s c x
 
-    -- Include sequence length in header at the end
+        -- Convert to amino acids
+        ntToaa x = if convertToAminoAcidsFlag opts
+                        then convertToAminoAcidsFastaSequence x
+                        else x
+
+        -- Include sequence length in header at the end
         includeLength x = if addLengthFlag opts
                             then addLengthHeader x
                             else x
 
+        -- Final order
+        filterOrder x  = seqInFrame x && customFilter x && noStops x
+        transformOrder = includeLength . ntToaa . changeHeader . fillIn . noNs
+
     -- Filter
     runEffect $ ( ( P.fromHandle hIn
                 >-> pipesFasta hIn
-                >-> P.filter (\x -> seqInFrame x && customFilter x && noStops x)
-                >-> P.map (includeLength . ntToaa . fillIn . noNs)
+                >-> P.filter filterOrder
+                >-> P.map transformOrder
                 >-> P.filter (not . null . fastaSeq) -- Remove empty sequences
                 >-> P.map showFasta ) -- Print the results
                  >> yield "" )  -- want that newline at the end
@@ -296,7 +316,7 @@ modifyFastaCloneMap opts = do
         codonMut              = inputCodonMut opts
         codonMutType          = inputCodonMutType opts
         mutType               = inputMutType opts
-        customFilters         = customFiltersIntParser $ inputCustomFilter opts
+        customFilters         = fieldIntParser $ inputCustomFilter opts
         removeGermlinesFlag   = if not . clipFastaFlag $ opts
                                     then True
                                     else removeGermlinesPreFlag opts
