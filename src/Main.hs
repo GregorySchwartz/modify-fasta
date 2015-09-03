@@ -30,6 +30,8 @@ data Options = Options { input                   :: String
                        , clipFastaFlag           :: Bool
                        , convertToAminoAcidsFlag :: Bool
                        , inputFillIn             :: FillInValue
+                       , inputStart              :: Maybe Int
+                       , inputStop               :: Maybe Int
                        , addLengthFlag           :: Bool
                        , removeTheNsFlag         :: Bool
                        , removeGermlinesPreFlag  :: Bool
@@ -82,7 +84,7 @@ options = Options
           ( long "convert-to-amino-acids"
          <> short 'C'
          <> help "Whether to convert the filtered sequences to amino acids\
-                 \ in the output. Applied last" )
+                 \ in the output. Applied last, even after add length." )
       <*> option auto
           ( long "fill-in"
          <> short 'F'
@@ -98,6 +100,22 @@ options = Options
                  \ the string in the field has the unknown character as well,\
                  \ i.e. >H2O|HELXO, then the sequence is considered bad and is\
                  \ removed" )
+      <*> option auto
+          ( long "start"
+         <> short 't'
+         <> metavar "[Nothing] | Just INT"
+         <> value Nothing
+         <> help "Remove everything before this position (1 indexed).\
+                 \ Done first just after filtering. \
+                 \ A Maybe value, so it's Just Int or Nothing" )
+      <*> option auto
+          ( long "stop"
+         <> short 'p'
+         <> metavar "[Nothing] | Just INT"
+         <> value Nothing
+         <> help "Remove everything after this position (1 indexed).\
+                 \ Done first just after filtering. \
+                 \ A Maybe value, so it's Just Int or Nothing" )
       <*> switch
           ( long "add-length"
          <> short 'l'
@@ -271,6 +289,11 @@ modifyFastaList opts = do
                              then changeAllFields x changeFields
                              else x
 
+        -- Get a specific region of the sequence
+        cutSequence x = case (inputStart opts, inputStop opts) of
+                            (Nothing, Nothing) -> x
+                            (start, stop)      -> getRegionSequence start stop x
+
         -- Fill in bad characters at the requested section with possible
         -- replacements
         fillIn x = case inputFillIn opts of
@@ -289,7 +312,12 @@ modifyFastaList opts = do
 
         -- Final order
         filterOrder x  = seqInFrame x && customFilter x && noStops x
-        transformOrder = includeLength . ntToaa . changeHeader . fillIn . noNs
+        transformOrder = includeLength
+                       . ntToaa
+                       . changeHeader
+                       . fillIn
+                       . noNs
+                       . cutSequence
 
     -- Filter
     runEffect $ ( ( P.fromHandle hIn
