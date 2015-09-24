@@ -3,7 +3,7 @@
 --
 -- Collection of functions for the filtering of a CloneMap
 
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, FlexibleContexts #-}
 
 module FilterCloneMap where
 
