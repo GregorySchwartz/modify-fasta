@@ -6,13 +6,18 @@
 -- Built-in
 import qualified Data.Map as M
 import qualified System.IO as IO
+import qualified Data.Text.IO as IO
 import Control.Monad
 
 -- Cabal
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Options.Applicative
-import Data.Fasta.String
+import Data.Fasta.Text
 import Pipes
 import qualified Pipes.Prelude as P
+import qualified Pipes.Text as PT
+import qualified Pipes.Text.IO as PT
 import qualified Data.List.Split as Split
 
 -- Local
@@ -43,7 +48,7 @@ data Options = Options { input                   :: String
                        , inputCodonMut           :: CodonMut
                        , inputCodonMutType       :: String
                        , inputMutType            :: String
-                       , inputChangeField       :: String
+                       , inputChangeField        :: String
                        , inputCustomFilter       :: String
                        , customGermlineFlag      :: Bool
                        , customRemoveFlag        :: Bool
@@ -238,7 +243,7 @@ options = Options
          <> value ""
          <> help "The output fasta file" )
 
-fieldIntParser :: String -> [(Maybe Int, String)]
+fieldIntParser :: String -> [(Maybe Int, T.Text)]
 fieldIntParser "" = []
 fieldIntParser s  = map (\x -> (first x, second x)) . Split.splitOn "&&" $ s
   where
@@ -246,7 +251,7 @@ fieldIntParser s  = map (\x -> (first x, second x)) . Split.splitOn "&&" $ s
         | (head . Split.splitOn "," $ x) == "(" = Nothing
         | otherwise =
             Just (read (tail . head . Split.splitOn "," $ x) :: Int)
-    second = init . dropWhile (== ' ') . last . Split.splitOn ","
+    second = T.pack . init . dropWhile (== ' ') . last . Split.splitOn ","
 
 isAminoAcid :: GeneticUnit -> Bool
 isAminoAcid AminoAcid = True
@@ -320,14 +325,13 @@ modifyFastaList opts = do
                        . cutSequence
 
     -- Filter
-    runEffect $ ( ( P.fromHandle hIn
-                >-> pipesFasta hIn
+    runEffect $ ( ( pipesFasta (PT.fromHandle hIn)
                 >-> P.filter filterOrder
                 >-> P.map transformOrder
-                >-> P.filter (not . null . fastaSeq) -- Remove empty sequences
-                >-> P.map showFasta ) -- Print the results
-                 >> yield "" )  -- want that newline at the end
-            >-> P.toHandle hOut
+                >-> P.filter (not . T.null . fastaSeq) -- Remove empty sequences
+                >-> P.map (\x -> mappend (showFasta x) (T.pack "\n")) ) -- Print the results
+                 >> yield (T.pack "\n") )  -- want that newline at the end
+            >-> PT.toHandle hOut
 
     -- Finish up by closing file if written
     unless (null . output $ opts) (IO.hClose hOut)
@@ -336,14 +340,14 @@ modifyFastaList opts = do
 modifyFastaCloneMap :: Options -> IO ()
 modifyFastaCloneMap opts = do
     contents <- if null . input $ opts
-                    then getContents
-                    else readFile . input $ opts
+                    then T.getContents
+                    else T.readFile . input $ opts
     -- No redundant newlines in sequence
     let genUnit               = read . aminoAcidsFlag $ opts
         stopRange             = inputStopRange opts
         codonMut              = inputCodonMut opts
-        codonMutType          = inputCodonMutType opts
-        mutType               = inputMutType opts
+        codonMutType          = T.pack . inputCodonMutType $ opts
+        mutType               = T.pack . inputMutType $ opts
         customFilters         = fieldIntParser $ inputCustomFilter opts
         removeGermlinesFlag   = if not . clipFastaFlag $ opts
                                     then True
@@ -444,22 +448,22 @@ modifyFastaCloneMap opts = do
     case countFlag opts of
         True -> do
             -- Print results
-            let outputString = printSequenceCount
-                               (clipFastaFlag opts)
-                               (inputGeneAlleleField opts)
-                               cloneMapAA
+            let outputText = printSequenceCount
+                                (clipFastaFlag opts)
+                                (inputGeneAlleleField opts)
+                                cloneMapAA
             -- Print results to stdout
-            putStrLn outputString
+            T.putStrLn outputText
         False -> do
             -- Print results
-            let outputString = if removeGermlinesFlag
-                                   then  printFastaNoGermline cloneMapAA
-                                   else  printFasta cloneMapAA
+            let outputText = if removeGermlinesFlag
+                                then  printFastaNoGermline cloneMapAA
+                                else  printFasta cloneMapAA
 
             -- Save results
             if null . output $ opts
-                then putStrLn outputString
-                else writeFile (output opts) outputString
+                then T.putStrLn outputText
+                else T.writeFile (output opts) outputText
 
 modifyFasta :: Options -> IO ()
 modifyFasta opts = if legacyFlag opts

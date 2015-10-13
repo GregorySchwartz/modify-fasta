@@ -7,10 +7,11 @@ module Diversity where
 
 -- Built-in
 import Data.List
+import qualified Data.Text as T
 
 -- Takes two strings, returns Hamming distance
-hamming :: String -> String -> Int
-hamming xs ys = length $ filter not $ zipWith (==) xs ys
+hamming :: T.Text -> T.Text -> Int
+hamming xs ys = length $ filter (not . uncurry (==)) $ T.zip xs ys
 
 -- Returns the diversity of a list of things
 diversity :: (Ord b) => Double -> [b] -> Double

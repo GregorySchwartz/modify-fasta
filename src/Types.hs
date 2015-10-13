@@ -5,12 +5,15 @@
 
 module Types where
 
+-- Built-in
+import qualified Data.Text as T
+
 -- Algebraic
 data GeneticUnit   = AminoAcid | Nucleotide deriving (Read, Show)
 
 -- Basic
 type ID       = Int
-type Codon    = String
+type Codon    = T.Text
 type CodonMut = Int
 type Field    = Int
 type Start    = Int

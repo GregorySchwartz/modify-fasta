@@ -3,7 +3,7 @@
 --
 -- Collection of functions for the filtering of a CloneMap
 
-{-# LANGUAGE BangPatterns, FlexibleContexts #-}
+{-# LANGUAGE BangPatterns, OverloadedStrings, FlexibleContexts #-}
 
 module FilterCloneMap where
 
@@ -15,10 +15,11 @@ import Data.Either
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Text.Regex.TDFA
+import Text.Regex.TDFA.Text
+import qualified Data.Text as T
 
 -- Cabal
-import qualified Data.List.Split as Split
-import Data.Fasta.String
+import Data.Fasta.Text
 
 -- Local
 import Types
@@ -53,18 +54,18 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
     isHighlyMutated !k !x =
         case (readSeq genUnit k, readSeq genUnit x) of
             ((Right a), (Right b)) -> (\n -> Right (n, b))
-                                    $ ( (genericLength (fastaSeq a) :: Double)
+                                    $ ( (fromIntegral (T.length (fastaSeq a)) :: Double)
                                       / 3 )
                                    <= ( ( genericLength
                                         . realMutations (fastaSeq a)
                                         $ fastaSeq b ) )
-            ((Left a), (Right _)) -> Left (unwords ["Germline: ", a])
-            ((Right _), (Left b)) -> Left (unwords ["Sequence: ", b])
-            ((Left a), (Left b))  -> Left ( unwords [ "Sequence:"
-                                                    , b
+            ((Left a), (Right _)) -> Left (unwords ["Germline: ", T.unpack a])
+            ((Right _), (Left b)) -> Left (unwords ["Sequence: ", T.unpack b])
+            ((Left a), (Left b))  -> Left (unwords [ "Sequence:"
+                                                    , T.unpack b
                                                     , "with Germline:"
-                                                    , a ] )
-    realMutations k x   = filterCodonMutStab (\(y, z) -> y /= z)
+                                                    , T.unpack a ] )
+    realMutations k x   = filterCodonMutStab (\(!y, !z) -> y /= z)
                         . map snd
                         . mutation k
                         $ x
@@ -81,29 +82,29 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
     inTuple c (x, y)
         | c == x || c == y = True
         | otherwise        = False
-    mutation x y        = zip [1..] . zip x $ y
+    mutation x y        = zip [1..] . T.zip x $ y
     readSeq Nucleotide x = Right x
     readSeq AminoAcid x  = translate 1 x
 
 -- Replace codons that have more than CodonMut mutations (make them "---"
 -- codons).
-removeCodonMutCount :: CodonMut -> String -> String -> CloneMap -> CloneMap
+removeCodonMutCount :: CodonMut -> T.Text -> T.Text -> CloneMap -> CloneMap
 removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
   where
     mapRemove (_, germ)          = map (removeCodon germ)
     removeCodon germ clone       = clone { fastaSeq
                                          = remove (fastaSeq germ)
                                          . fastaSeq $ clone }
-    remove germSeq               = concatMap snd
-                                 . map replaceCodon
+    remove germSeq               = mconcat
+                                 . map (snd . replaceCodon)
                                  . zip (codonSplit germSeq)
                                  . codonSplit
     replaceCodon (x, y)
         | (codonMutOp codonMutType) (hamming x y) codonMut
-       && isMutType (map toUpper mutType) x y          = (x, y)
+       && isMutType (T.toUpper mutType) x y          = (x, y)
         | otherwise                                    = ("---", "---")
-    codonSplit                   = fullCodon . Split.chunksOf 3
-    fullCodon                    = filter ((==3) . length)
+    codonSplit                   = fullCodon . T.chunksOf 3
+    fullCodon                    = filter ((== 3) . T.length)
     codonMutOp ">" = (>)
     codonMutOp "<" = (<)
     codonMutOp "=" = (==)
@@ -125,18 +126,27 @@ removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
                 . filter (not . null)
                 . map snd
                 . M.toAscList
-                . M.map (intercalate "\n" . lefts . map (translate 1))
+                . M.map ( intercalate "\n"
+                        . map T.unpack
+                        . lefts
+                        . map (translate 1)
+                        )
                 $ cloneMap
     newCloneMap = M.map (filter (filterStops genUnit)) cloneMap
     filterStops Nucleotide x = (isRight' . translate 1 $ x)
-                            && ( notElem '*'
-                               . take stopRange
+                            && ( not
+                               . T.isInfixOf "*"
+                               . T.take stopRange
                                . fastaSeq
                                . fromEither
                                . translate 1 ) x
-    filterStops AminoAcid  x = notElem '*' . take stopRange . fastaSeq $ x
+    filterStops AminoAcid  x = not
+                             . T.isInfixOf "*"
+                             . T.take stopRange
+                             . fastaSeq
+                             $ x
     fromEither (Right x)     = x
-    fromEither (Left x)      = error x
+    fromEither (Left x)      = error (T.unpack x)
 
 -- Remove duplicate sequences
 removeDuplicatesCloneMap :: CloneMap -> CloneMap
@@ -154,10 +164,10 @@ removeDuplicatesCloneMap cloneMap = M.map
 removeOutOfFrameSeqs :: CloneMap -> CloneMap
 removeOutOfFrameSeqs = M.map (filter isInFrame)
   where
-    isInFrame  = (== (0 :: Int))
+    isInFrame  = (== 0)
                . mod 3
-               . genericLength
-               . filter (`notElem` ".-")
+               . T.length
+               . T.filter (\x -> not $ T.isInfixOf (T.singleton x) ".-")
                . fastaSeq
 
 -- Remove sequences that do not contain the string customFilter in the
@@ -171,7 +181,7 @@ removeOutOfFrameSeqs = M.map (filter isInFrame)
 removeCustomFilter :: Bool
                    -> Bool
                    -> Maybe Int
-                   -> String
+                   -> T.Text
                    -> CloneMap
                    -> CloneMap
 removeCustomFilter germ rm customField customFilter cloneMap
@@ -186,7 +196,7 @@ removeCustomFilter germ rm customField customFilter cloneMap
   where
     inField         = equal rm customFilter . fastaHeader
     inCustomField x = equal rm customFilter
-                    . (!!) (Split.splitOn "|" . fastaHeader $ x)
+                    . (!!) (T.splitOn "|" . fastaHeader $ x)
                     $ (fromJust customField - 1)
     equal False x y = y =~ x :: Bool
     equal True x y  = not . equal False x $ y
@@ -194,7 +204,7 @@ removeCustomFilter germ rm customField customFilter cloneMap
 removeAllCustomFilters :: Bool
                        -> Bool
                        -> CloneMap
-                       -> [(Maybe Int, String)]
+                       -> [(Maybe Int, T.Text)]
                        -> CloneMap
 removeAllCustomFilters germ rm = foldl' filterMap
   where
@@ -206,25 +216,25 @@ removeEmptyClone = M.filter (not . null)
 
 -- Convert sequences to amino acids
 convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, Maybe String)
-convertToAminoAcidsCloneMap !cloneMap = (newCloneMap, errorString)
+convertToAminoAcidsCloneMap cloneMap = (newCloneMap, errorString)
   where
-    newCloneMap   = M.mapKeysWith (++) (\(x, y) -> (x, fromEither y))
-                  . M.filterWithKey (\(_, y) _ -> isRight' y)
+    newCloneMap   = M.mapKeysWith (++) (\(!x, !y) -> (x, fromEither y))
+                  . M.filterWithKey (\(_, !y) _ -> isRight' y)
                   . M.map rights
                   $ errorCloneMap
     errorString   = listToMaybe'
                   . concatMap snd
                   . M.toAscList
-                  . M.mapWithKey (\(_, y) v -> (++) (eitherToString y)
-                                             . concat
+                  . M.mapWithKey (\(_, !y) v -> (++) (eitherToString y)
+                                             . concatMap T.unpack
                                              . lefts
                                              $ v )
                   $ errorCloneMap
     errorCloneMap = M.mapKeys keyMap
                   . M.map (map (translate 1))
                   $ cloneMap
-    keyMap (x, y) = (x, translate 1 y)
+    keyMap (!x, !y) = (x, translate 1 y)
     eitherToString (Right _) = ""
-    eitherToString (Left x) = x
+    eitherToString (Left x)  = T.unpack x
     fromEither (Right x)     = x
-    fromEither (Left x)      = error x
+    fromEither (Left x)      = error (T.unpack x)
