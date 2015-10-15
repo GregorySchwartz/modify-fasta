@@ -8,6 +8,9 @@ module Types where
 -- Built-in
 import qualified Data.Text as T
 
+-- Cabal
+import Data.Fasta.Text.Types
+
 -- Algebraic
 data GeneticUnit   = AminoAcid | Nucleotide deriving (Read, Show)
 
@@ -20,4 +23,5 @@ type Start    = Int
 type Stop     = Int
 
 -- Advanced
+type CloneEntry  = (Germline, [FastaSequence])
 type FillInValue = (Field, Start, Char)

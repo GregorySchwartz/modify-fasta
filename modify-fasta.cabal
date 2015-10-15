@@ -25,7 +25,7 @@ executable modify-fasta
                      , text-show
                      , split >=0.2
                      , optparse-applicative >=0.11
-                     , fasta >= 0.8
+                     , fasta
                      , regex-tdfa >=1.2
                      , regex-tdfa-text
                      , pipes >= 4.1

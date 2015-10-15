@@ -4,7 +4,7 @@
 -- Collection of functions for the printing of data (converting data
 -- structures into strings for use with writing to output files).
 
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns, OverloadedStrings #-}
 
 module Print where
 
@@ -16,6 +16,9 @@ import qualified Data.Text as T
 -- Cabal
 import Data.Fasta.Text
 import TextShow
+
+-- Local
+import Types
 
 -- Return the results of the filtration in text form for saving
 -- to a file
@@ -82,3 +85,13 @@ printSequenceCount clip idx s = body
     getField f h   = splitHeader h !! (f - 1)
     splitHeader    = T.splitOn "|" . fastaHeader
 
+-- | Takes a clone entry and returns a formatted text with or without
+-- germline
+printCloneEntry :: Bool -> CloneEntry -> T.Text
+printCloneEntry False (!germline, !fseqs)  =
+    T.intercalate "\n" [ T.cons '>' $ showFasta germline
+                       , T.intercalate "\n" . map showFasta $ fseqs
+                       ]
+printCloneEntry True (!germline, !fseqs) = T.intercalate "\n"
+                                          . map showFasta
+                                          $ fseqs

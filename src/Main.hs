@@ -3,6 +3,8 @@
 
 -- Takes a fasta file filters the fasta file in several ways.
 
+{-# LANGUAGE BangPatterns #-}
+
 -- Built-in
 import qualified Data.Map as M
 import qualified System.IO as IO
@@ -25,7 +27,9 @@ import Types
 import Utility
 import FilterCloneMap
 import FilterFastaList
+import FilterCloneList
 import TransformFastaList
+import TransformCloneList
 import Print
 
 -- Command line arguments
@@ -81,10 +85,10 @@ options = Options
                  \ Features that are legacy only are noted in this\
                  \ documentation" )
       <*> switch
-          ( long "legacy-clip-fasta"
+          ( long "clip-fasta"
          <> short 'A'
          <> help "Whether the input is a clip fasta file (has germline >>\
-                 \ sequences). LEGACY ONLY" )
+                 \ sequences)." )
       <*> switch
           ( long "convert-to-amino-acids"
          <> short 'C'
@@ -132,14 +136,14 @@ options = Options
          <> short 'N'
          <> help "Whether to replace N or n in the sequence with a gap, '-'" )
       <*> switch
-          ( long "legacy-remove-germlines"
+          ( long "remove-germlines"
          <> short 'g'
-         <> help "Whether to remove germlines. LEGACY ONLY" )
+         <> help "Whether to remove germlines." )
       <*> switch
-          ( long "legacy-remove-highly-mutated"
+          ( long "remove-highly-mutated"
          <> short 'h'
          <> help "Whether to remove highly mutated clone sequences (a third\
-                 \ of their sequence are different amino acids). LEGACY ONLY" )
+                 \ of their sequence are different amino acids)." )
       <*> switch
           ( long "remove-stops"
          <> short 's'
@@ -161,29 +165,28 @@ options = Options
          <> help "Only search for stops with remove-stops up to this\
                  \ amino acid position" )
       <*> option auto
-          ( long "legacy-input-codon-mut"
+          ( long "input-codon-mut"
          <> short 'c'
          <> metavar "[-1]|0|1|2|3"
          <> value (-1)
          <> help "Only include codons with this many mutations or less or more,\
                  \ depending on input-codon-mut-type (-1 is the same as include\
-                 \ all codons). Converts the codon to gaps. LEGACY ONLY" )
+                 \ all codons). Converts the codon to gaps." )
       <*> strOption
-          ( long "legacy-input-codon-mut-type"
+          ( long "input-codon-mut-type"
          <> short 'T'
          <> metavar "[=]|>|<"
          <> value "="
          <> help "Only include codons with this many mutations (=)\
                  \ (or lesser (<) or greater (>), depending on\
-                 \ input-codon-mut). Converts the codon to gaps. LEGACY ONLY" )
+                 \ input-codon-mut). Converts the codon to gaps." )
       <*> strOption
-          ( long "legacy-input-mut-type"
+          ( long "input-mut-type"
          <> short 'M'
          <> metavar "[All]|Silent|Replacement"
          <> value "All"
          <> help "Only include codons with this all mutations (All),\
-                 \ (or silent (Silent) or replacement (Replacement)). LEGACY\
-                 \ ONLY" )
+                 \ (or silent (Silent) or replacement (Replacement))." )
       <*> strOption
           ( long "input-change-field"
          <> short 'e'
@@ -265,10 +268,13 @@ modifyFastaList opts = do
     hOut <- if null . output $ opts
                 then return IO.stdout
                 else IO.openFile (output opts) IO.WriteMode
-    let genUnit               = read . aminoAcidsFlag $ opts
-        stopRange             = inputStopRange opts
-        customFilters         = fieldIntParser . inputCustomFilter $ opts
-        changeFields          = fieldIntParser . inputChangeField $ opts
+    let genUnit        = read . aminoAcidsFlag $ opts
+        stopRange      = inputStopRange opts
+        customFilters  = fieldIntParser . inputCustomFilter $ opts
+        changeFields   = fieldIntParser . inputChangeField $ opts
+        codonMut       = inputCodonMut opts
+        codonMutType   = T.pack . inputCodonMutType $ opts
+        mutType        = T.pack . inputMutType $ opts
 
         -- Remove out of frame sequences
         seqInFrame x = not ( removeOutOfFrameFlag opts
@@ -315,23 +321,66 @@ modifyFastaList opts = do
                             then addLengthHeader x
                             else x
 
-        -- Final order
-        filterOrder x  = seqInFrame x && customFilter x && noStops x
-        transformOrder = includeLength
-                       . ntToaa
-                       . changeHeader
-                       . fillIn
-                       . noNs
-                       . cutSequence
+        -- CLIP fasta specific filters and transformations
 
-    -- Filter
-    runEffect $ ( ( pipesFasta (PT.fromHandle hIn)
-                >-> P.filter filterOrder
-                >-> P.map transformOrder
-                >-> P.filter (not . T.null . fastaSeq) -- Remove empty sequences
-                >-> P.map (\x -> mappend (showFasta x) (T.pack "\n")) ) -- Print the results
-                 >> yield (T.pack "\n") )  -- want that newline at the end
-            >-> PT.toHandle hOut
+        -- Remove highly mutated sequences
+        removeHighMutations x = if removeHighlyMutatedFlag opts
+                                    then filterHighlyMutatedEntry genUnit x
+                                    else x
+
+        -- Extract mutations to a certain degree
+        getMutations x = if codonMut > -1
+                            then onlyMutations codonMut codonMutType mutType x
+                            else x
+
+        -- Final order
+        filterOrder x      = seqInFrame x && customFilter x && noStops x
+        transformOrder     = includeLength
+                           . ntToaa
+                           . changeHeader
+                           . fillIn
+                           . noNs
+                           . cutSequence
+        -- Specifically for CLIP fasta files
+        transformOrderCLIP = getMutations
+                           . removeHighMutations
+
+        executePrintFasta x = mappend (showFasta x) (T.pack "\n")
+        executePrintCLIPFasta x =
+            mappend
+            (printCloneEntry (removeGermlinesPreFlag opts) x)
+            (T.pack "\n")
+
+    -- Execute pipes
+    if clipFastaFlag opts
+        then
+            runEffect $ ( ( pipesCLIPFasta (PT.fromHandle hIn)
+                        >-> P.map ( \(!germline, !fseqs) ->
+                                    (germline, filter filterOrder fseqs)
+                                  ) -- Filter sequences
+                        >-> P.map transformOrderCLIP -- Transform specifically for CLIP fasta
+                        >-> P.map ( \(!germline, !fseqs) ->
+                                    ( transformOrder germline
+                                    , map transformOrder fseqs
+                                    )
+                                  ) -- Transform sequences
+                        >-> P.map ( \(!germline, !fs)
+                                 -> ( germline
+                                    , filter (not . T.null . fastaSeq) fs
+                                    )
+                                  ) -- Remove empty sequences
+                        >-> P.filter (not . null . snd) -- Remove empty clones
+                        >-> P.map executePrintCLIPFasta ) -- Print the results
+                         >> yield (T.pack "\n") )  -- want that newline at the end
+                    >-> PT.toHandle hOut
+        else
+            runEffect $ ( ( pipesFasta (PT.fromHandle hIn)
+                        >-> P.filter filterOrder -- Filter
+                        >-> P.map transformOrder -- Transform
+                        >-> P.filter (not . T.null . fastaSeq) -- Remove empty sequences
+                        >-> P.map executePrintFasta ) -- Print the results
+                         >> yield (T.pack "\n") )  -- want that newline at the end
+                    >-> PT.toHandle hOut
 
     -- Finish up by closing file if written
     unless (null . output $ opts) (IO.hClose hOut)
@@ -356,9 +405,9 @@ modifyFastaCloneMap opts = do
     -- Initiate CloneMap
         cloneMapFrames = if not . clipFastaFlag $ opts
                             then addFillerGermlines
-                               . parseFasta
+                               . parsecFasta
                                $ contents
-                            else parseCLIPFasta contents
+                            else parsecCLIPFasta contents
 
     -- Remove out of frame sequences
         cloneMapInFrame       = if (removeOutOfFrameFlag opts && ( not
