@@ -41,6 +41,7 @@ data Options = Options { input                   :: String
                        , inputFillIn             :: FillInValue
                        , inputStart              :: Maybe Int
                        , inputStop               :: Maybe Int
+                       , inputMutationCount      :: Maybe Int
                        , addLengthFlag           :: Bool
                        , removeTheNsFlag         :: Bool
                        , removeGermlinesPreFlag  :: Bool
@@ -109,22 +110,25 @@ options = Options
                  \ the string in the field has the unknown character as well,\
                  \ i.e. >H2O|HELXO, then the sequence is considered bad and is\
                  \ removed" )
-      <*> option auto
+      <*> optional ( option auto
           ( long "start"
          <> short 't'
-         <> metavar "[Nothing] | Just INT"
-         <> value Nothing
+         <> metavar "[ ] | INT"
          <> help "Remove everything before this position (1 indexed).\
-                 \ Done first just after filtering. \
-                 \ A Maybe value, so it's Just Int or Nothing" )
-      <*> option auto
+                 \ Done first just after filtering." ) )
+      <*> optional ( option auto
           ( long "stop"
          <> short 'p'
-         <> metavar "[Nothing] | Just INT"
-         <> value Nothing
+         <> metavar "[ ] | INT"
          <> help "Remove everything after this position (1 indexed).\
-                 \ Done first just after filtering. \
-                 \ A Maybe value, so it's Just Int or Nothing" )
+                 \ Done first just after filtering." ) )
+      <*> optional ( option auto
+          ( long "frequent-mutations"
+         <> short 'R'
+         <> metavar "[ ] | INT"
+         <> help "Only include codons containing a mutation present in this\
+                 \ many sequences in the clone or more. 0 is all sequences.\
+                 \ Converts the unincluded codons to gaps." ) )
       <*> switch
           ( long "add-length"
          <> short 'l'
@@ -171,7 +175,7 @@ options = Options
          <> value (-1)
          <> help "Only include codons with this many mutations or less or more,\
                  \ depending on input-codon-mut-type (-1 is the same as include\
-                 \ all codons). Converts the codon to gaps." )
+                 \ all codons). Converts the unincluded codon to gaps." )
       <*> strOption
           ( long "input-codon-mut-type"
          <> short 'T'
@@ -179,7 +183,7 @@ options = Options
          <> value "="
          <> help "Only include codons with this many mutations (=)\
                  \ (or lesser (<) or greater (>), depending on\
-                 \ input-codon-mut). Converts the codon to gaps." )
+                 \ input-codon-mut). Converts the unincluded codon to gaps." )
       <*> strOption
           ( long "input-mut-type"
          <> short 'M'
@@ -291,9 +295,9 @@ modifyFastaList opts = do
         noStops x = not (removeStopsFlag opts) || hasNoStops genUnit stopRange x
 
         -- Remove Ns from fasta list
-        noNs x = if removeTheNsFlag opts && (not . isAminoAcid $ genUnit)
-                    then removeN x
-                    else x
+        noNs = if removeTheNsFlag opts && (not . isAminoAcid $ genUnit)
+                then removeN
+                else id
 
         -- Change fasta headers with match
         changeHeader x = if not . null $ changeFields
@@ -301,37 +305,42 @@ modifyFastaList opts = do
                              else x
 
         -- Get a specific region of the sequence
-        cutSequence x = case (inputStart opts, inputStop opts) of
-                            (Nothing, Nothing) -> x
-                            (start, stop)      -> getRegionSequence start stop x
+        cutSequence = case (inputStart opts, inputStop opts) of
+                        (Nothing, Nothing) -> id
+                        (start, stop)      -> getRegionSequence start stop
 
         -- Fill in bad characters at the requested section with possible
         -- replacements
-        fillIn x = case inputFillIn opts of
-                    (-1, -1, 'X') -> x
-                    (f, s, c)     -> fillInSequence f s c x
+        fillIn = case inputFillIn opts of
+                    (-1, -1, 'X') -> id
+                    (f, s, c)     -> fillInSequence f s c
 
         -- Convert to amino acids
-        ntToaa x = if convertToAminoAcidsFlag opts
-                        then convertToAminoAcidsFastaSequence x
-                        else x
+        ntToaa = if convertToAminoAcidsFlag opts
+                    then convertToAminoAcidsFastaSequence
+                    else id
 
         -- Include sequence length in header at the end
-        includeLength x = if addLengthFlag opts
-                            then addLengthHeader x
-                            else x
+        includeLength = if addLengthFlag opts
+                            then addLengthHeader
+                            else id
 
         -- CLIP fasta specific filters and transformations
 
         -- Remove highly mutated sequences
-        removeHighMutations x = if removeHighlyMutatedFlag opts
-                                    then filterHighlyMutatedEntry genUnit x
-                                    else x
+        removeHighMutations = if removeHighlyMutatedFlag opts
+                                then filterHighlyMutatedEntry genUnit
+                                else id
 
         -- Extract mutations to a certain degree
-        getMutations x = if codonMut > -1
-                            then onlyMutations codonMut codonMutType mutType x
-                            else x
+        getMutations = if codonMut > -1
+                        then onlyMutations codonMut codonMutType mutType
+                        else id
+
+        -- Extract mutations to a certain degree
+        getFrequentMutations = case inputMutationCount opts of
+                                    (Just count) -> frequentMutations count
+                                    Nothing      -> id
 
         -- Final order
         filterOrder x      = seqInFrame x && customFilter x && noStops x
@@ -342,7 +351,8 @@ modifyFastaList opts = do
                            . noNs
                            . cutSequence
         -- Specifically for CLIP fasta files
-        transformOrderCLIP = getMutations
+        transformOrderCLIP = getFrequentMutations
+                           . getMutations
                            . removeHighMutations
 
         executePrintFasta x = mappend (showFasta x) (T.pack "\n")

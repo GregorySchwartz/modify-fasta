@@ -7,6 +7,7 @@ module Types where
 
 -- Built-in
 import qualified Data.Text as T
+import qualified Data.Map.Strict as Map
 
 -- Cabal
 import Data.Fasta.Text.Types
@@ -21,7 +22,11 @@ type CodonMut = Int
 type Field    = Int
 type Start    = Int
 type Stop     = Int
+type Position = Int
 
 -- Advanced
-type CloneEntry  = (Germline, [FastaSequence])
-type FillInValue = (Field, Start, Char)
+type CloneEntry     = (Germline, [FastaSequence])
+type FillInValue    = (Field, Start, Char)
+type Mutation       = (Char, Char)
+type CountMap       = Map.Map (Position, Mutation) Int
+type CodonMutations = [[(Position, Mutation)]]
