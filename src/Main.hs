@@ -6,6 +6,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 -- Built-in
+import Data.Maybe
 import qualified Data.Map as M
 import qualified System.IO as IO
 import qualified Data.Text.IO as IO
@@ -33,33 +34,35 @@ import TransformCloneList
 import Print
 
 -- Command line arguments
-data Options = Options { input                   :: String
-                       , aminoAcidsFlag          :: String
-                       , legacyFlag              :: Bool
-                       , clipFastaFlag           :: Bool
-                       , convertToAminoAcidsFlag :: Bool
-                       , inputFillIn             :: FillInValue
-                       , inputStart              :: Maybe Int
-                       , inputStop               :: Maybe Int
-                       , inputMutationCount      :: Maybe Int
-                       , addLengthFlag           :: Bool
-                       , removeTheNsFlag         :: Bool
-                       , removeGermlinesPreFlag  :: Bool
-                       , removeHighlyMutatedFlag :: Bool
-                       , removeStopsFlag         :: Bool
-                       , removeDuplicatesFlag    :: Bool
-                       , removeOutOfFrameFlag    :: Bool
-                       , inputStopRange          :: Int
-                       , inputCodonMut           :: CodonMut
-                       , inputCodonMutType       :: String
-                       , inputMutType            :: String
-                       , inputChangeField        :: String
-                       , inputCustomFilter       :: String
-                       , customGermlineFlag      :: Bool
-                       , customRemoveFlag        :: Bool
-                       , inputGeneAlleleField    :: Int
-                       , countFlag               :: Bool
-                       , output                  :: String
+data Options = Options { input                    :: String
+                       , aminoAcidsFlag           :: String
+                       , legacyFlag               :: Bool
+                       , clipFastaFlag            :: Bool
+                       , convertToAminoAcidsFlag  :: Bool
+                       , inputFillIn              :: FillInValue
+                       , inputStart               :: Maybe Int
+                       , inputStop                :: Maybe Int
+                       , inputMinSequenceMutation :: Maybe Int
+                       , inputMutationCount       :: Maybe Int
+                       , inputMutationPercent     :: Maybe Double
+                       , addLengthFlag            :: Bool
+                       , removeTheNsFlag          :: Bool
+                       , removeGermlinesPreFlag   :: Bool
+                       , removeHighlyMutatedFlag  :: Bool
+                       , removeStopsFlag          :: Bool
+                       , removeDuplicatesFlag     :: Bool
+                       , removeOutOfFrameFlag     :: Bool
+                       , inputStopRange           :: Int
+                       , inputCodonMut            :: CodonMut
+                       , inputCodonMutType        :: String
+                       , inputMutType             :: String
+                       , inputChangeField         :: String
+                       , inputCustomFilter        :: String
+                       , customGermlineFlag       :: Bool
+                       , customRemoveFlag         :: Bool
+                       , inputGeneAlleleField     :: Int
+                       , countFlag                :: Bool
+                       , output                   :: String
                        }
 
 -- Command line options
@@ -123,12 +126,27 @@ options = Options
          <> help "Remove everything after this position (1 indexed).\
                  \ Done first just after filtering." ) )
       <*> optional ( option auto
-          ( long "frequent-mutations"
+          ( long "frequent-mutation-min"
+         <> short 'R'
+         <> metavar "[ ] | INT"
+         <> help "Minimum number of sequences required for a clone to be valid\
+                 \ in the calculation of frequent mutations, replaces\
+                 \ with gaps otherwise" ) )
+      <*> optional ( option auto
+          ( long "frequent-mutation-count"
          <> short 'R'
          <> metavar "[ ] | INT"
          <> help "Only include codons containing a mutation present in this\
                  \ many sequences in the clone or more. 0 is all sequences.\
                  \ Converts the unincluded codons to gaps." ) )
+      <*> optional ( option auto
+          ( long "frequent-mutation-percent"
+         <> short 'R'
+         <> metavar "[ ] | PERCENT"
+         <> help "Only include codons containing a mutation present in this\
+                 \ percentage of sequences in the clone or more.\
+                 \ 0 is all sequences. Converts the unincluded codons\
+                 \ to gaps." ) )
       <*> switch
           ( long "add-length"
          <> short 'l'
@@ -338,9 +356,13 @@ modifyFastaList opts = do
                         else id
 
         -- Extract mutations to a certain degree
-        getFrequentMutations = case inputMutationCount opts of
-                                    (Just count) -> frequentMutations count
-                                    Nothing      -> id
+        getFrequentMutations = if isJust (inputMutationCount opts)
+                               || isJust (inputMutationPercent opts)
+                                   then frequentMutations
+                                        (inputMinSequenceMutation opts)
+                                        (inputMutationCount opts)
+                                        (inputMutationPercent opts)
+                                   else id
 
         -- Final order
         filterOrder x      = seqInFrame x && customFilter x && noStops x
