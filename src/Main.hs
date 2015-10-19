@@ -127,21 +127,18 @@ options = Options
                  \ Done first just after filtering." ) )
       <*> optional ( option auto
           ( long "frequent-mutation-min"
-         <> short 'R'
          <> metavar "[ ] | INT"
          <> help "Minimum number of sequences required for a clone to be valid\
                  \ in the calculation of frequent mutations, replaces\
                  \ with gaps otherwise" ) )
       <*> optional ( option auto
           ( long "frequent-mutation-count"
-         <> short 'R'
          <> metavar "[ ] | INT"
          <> help "Only include codons containing a mutation present in this\
                  \ many sequences in the clone or more. 0 is all sequences.\
                  \ Converts the unincluded codons to gaps." ) )
       <*> optional ( option auto
           ( long "frequent-mutation-percent"
-         <> short 'R'
          <> metavar "[ ] | PERCENT"
          <> help "Only include codons containing a mutation present in this\
                  \ percentage of sequences in the clone or more.\
