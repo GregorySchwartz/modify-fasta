@@ -369,6 +369,10 @@ modifyFastaList opts = do
                            . fillIn
                            . noNs
                            . cutSequence
+        -- Specifically for germlines, as we don't want to change header or
+        -- fill in the germline because that would make no sense in this
+        -- case
+        transformGermline  = includeLength . ntToaa . noNs . cutSequence
         -- Specifically for CLIP fasta files
         transformOrderCLIP = getFrequentMutations
                            . getMutations
@@ -389,10 +393,10 @@ modifyFastaList opts = do
                                   ) -- Filter sequences
                         >-> P.map transformOrderCLIP -- Transform specifically for CLIP fasta
                         >-> P.map ( \(!germline, !fseqs) ->
-                                    ( transformOrder germline
+                                    ( transformGermline germline
                                     , map transformOrder fseqs
                                     )
-                                  ) -- Transform sequences
+                                  ) -- Transform sequences, only do some for germline
                         >-> P.map ( \(!germline, !fs)
                                  -> ( germline
                                     , filter (not . T.null . fastaSeq) fs
