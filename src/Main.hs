@@ -366,8 +366,8 @@ modifyFastaList opts = do
         transformOrder     = includeLength
                            . ntToaa
                            . changeHeader
-                           . fillIn
                            . noNs
+                           . fillIn
                            . cutSequence
         -- Specifically for germlines, as we don't want to change header or
         -- fill in the germline because that would make no sense in this
@@ -557,5 +557,12 @@ main = execParser opts >>= modifyFasta
   where
     opts = info (helper <*> options)
       ( fullDesc
-     <> progDesc "Modify fasta (and CLIP) files in several optional ways"
+     <> progDesc "Modify fasta (and CLIP) files in several optional ways.\
+                 \ Order of transformation goes: seqInFrame -> customFilter\
+                 \ -> noStops -> removeHighMutations -> getMutations ->\
+                 \ getFrequentMutations -> cutSequence -> fillIn -> noNs\
+                 \ -> changeHeader -> ntToaa -> includeLength,\
+                 \ so if you require a different\
+                 \ order (which can change results dramatically), then do\
+                 \ so one at a time through the wonderful world of piping."
      <> header "modify-fasta, Gregory W. Schwartz" )

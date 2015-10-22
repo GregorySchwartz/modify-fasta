@@ -107,9 +107,11 @@ replaceCodon minSeqs mutCount mutPercent numSeqs countMap = map replace
                          <> mutPercentValid count
             Nothing -> error ("Mutation not found: " ++ show x)
     minSeqsValid           = fmap (Any . not . (>=) numSeqs) minSeqs
-    mutCountValid count    = if count == 0
-                                 then fmap (Any . not . (==) count) mutCount
-                                 else fmap (Any . not . (>=) count) mutCount
+    mutCountValid count    = case mutCount of
+                                 (Just 0) -> fmap (Any . not . (==) count)
+                                           $ Just numSeqs
+                                 (Just x) -> Just . Any . not . (>=) count $ x
+                                 Nothing  -> Nothing
     mutPercentValid count  =
         fmap
         (Any . not . (>=) ((fromIntegral count / fromIntegral numSeqs) * 100))
