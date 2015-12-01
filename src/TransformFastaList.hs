@@ -11,10 +11,13 @@ module TransformFastaList ( convertToAminoAcidsFastaSequence
                           , changeField
                           , changeAllFields
                           , getRegionSequence
+                          , trimFasta
+                          , removeUnknownNucs
                           ) where
 
 -- Built-in
 import Data.List
+import Data.Char
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import qualified Data.Text as T
@@ -28,14 +31,14 @@ import Text.Regex.TDFA.Text
 import Types
 import Utility
 
--- Convert sequences to amino acids
+-- | Convert sequences to amino acids
 convertToAminoAcidsFastaSequence :: FastaSequence -> FastaSequence
 convertToAminoAcidsFastaSequence = fromEither . translate 1
   where
     fromEither (Right x)     = x
     fromEither (Left x)      = error . T.unpack $ x
 
--- Fill in the sequence with corrected nucleotides or amino acids
+-- | Fill in the sequence with corrected nucleotides or amino acids
 fillInSequence :: Field -> Start -> Char -> FastaSequence -> FastaSequence
 fillInSequence f s c fs = fs { fastaSeq = newFastaSeq }
   where
@@ -44,7 +47,7 @@ fillInSequence f s c fs = fs { fastaSeq = newFastaSeq }
     new          = (T.splitOn "|" . fastaHeader $ fs) !! (f - 1)
     (first, old) = T.splitAt (s - 1) . fastaSeq $ fs
 
--- Change a field to a match, so a regex "ch.*_" to field 2 of
+-- | Change a field to a match, so a regex "ch.*_" to field 2 of
 -- ">abc|brie_cheese_dude" would result in ">abc|cheese_". Useful for
 -- getting specific properties from a field
 changeField :: Maybe Field -> T.Text -> FastaSequence -> FastaSequence
@@ -58,20 +61,35 @@ changeField (Just field) regex fs = fs { fastaHeader = newFastaHeader }
     newField        = (Seq.index splitField (field - 1)) =~ regex :: T.Text
     splitField      = Seq.fromList . T.splitOn "|" . fastaHeader $ fs
 
--- Change all fields to their matches based on changeField
+-- | Change all fields to their matches based on changeField
 changeAllFields :: FastaSequence -> [(Maybe Int, T.Text)] -> FastaSequence
 changeAllFields = foldl' (\fs (!x, !y) -> changeField x y fs)
 
--- Get a region of a text, 0 indexed
+-- | Get a region of a text, 0 indexed
 getRegion :: Maybe Start -> Maybe Stop -> T.Text -> T.Text
 getRegion Nothing Nothing          = id
 getRegion Nothing (Just stop)      = T.take stop
 getRegion (Just start) Nothing     = T.drop start
 getRegion (Just start) (Just stop) = T.take (stop - start) . T.drop start
 
--- Get a region of a sequence, 1 indexed
+-- | Get a region of a sequence, 1 indexed
 getRegionSequence :: Maybe Start -> Maybe Stop -> FastaSequence -> FastaSequence
 getRegionSequence start0 stop fs = fs { fastaSeq = newFastaSeq }
   where
     newFastaSeq = getRegion start stop . fastaSeq $ fs
     start       = fmap (flip (-) 1) start0
+
+-- | Trim off extra nucleotides from a fasta sequence
+trimFasta :: FastaSequence -> FastaSequence
+trimFasta fs = fs { fastaSeq = trim . fastaSeq $ fs }
+  where
+    trim x = T.dropEnd (T.length x `mod` 3) x
+
+-- | Convert non standard nucleotides to gaps
+removeUnknownNucs :: FastaSequence -> FastaSequence
+removeUnknownNucs fs = fs { fastaSeq = T.map changeNuc . fastaSeq $ fs }
+  where
+    changeNuc x
+        | toUpper x `elem` ("ATCGN.-" :: String) = x
+        | otherwise                              = '-'
+

@@ -52,6 +52,8 @@ data Options = Options { input                    :: String
                        , removeStopsFlag          :: Bool
                        , removeDuplicatesFlag     :: Bool
                        , removeOutOfFrameFlag     :: Bool
+                       , removeUnknownNuc         :: Bool
+                       , trimFrame                :: Bool
                        , inputStopRange           :: Int
                        , inputCodonMut            :: CodonMut
                        , inputCodonMutType        :: String
@@ -176,6 +178,15 @@ options = Options
          <> short 'O'
          <> help "Whether to remove sequences that are out of frame--if the\
                  \ sequences or number of gaps is not divisible by 3" )
+      <*> switch
+          ( long "remove-unknown-nucleotides"
+         <> short 'Y'
+         <> help "Convert unknown nucleotides (not ACGTN-.) to gaps (-)" )
+      <*> switch
+          ( long "trim-frame"
+         <> short 'y'
+         <> help "Trim each sequence to be in frame by remove extra nucleotides\
+                 \ at the end" )
       <*> option auto
           ( long "input-stop-range"
          <> short 'r'
@@ -324,6 +335,16 @@ modifyFastaList opts = do
                         (Nothing, Nothing) -> id
                         (start, stop)      -> getRegionSequence start stop
 
+        -- Remove non standard nucleotides
+        removeUnknown = if removeUnknownNuc opts
+                            then removeUnknownNucs
+                            else id
+
+        -- Trim sequence
+        trim = if trimFrame opts
+                    then trimFasta
+                    else id
+
         -- Fill in bad characters at the requested section with possible
         -- replacements
         fillIn = case inputFillIn opts of
@@ -366,13 +387,20 @@ modifyFastaList opts = do
         transformOrder     = includeLength
                            . ntToaa
                            . changeHeader
+                           . removeUnknown
+                           . trim
                            . noNs
                            . fillIn
                            . cutSequence
         -- Specifically for germlines, as we don't want to change header or
         -- fill in the germline because that would make no sense in this
         -- case
-        transformGermline  = includeLength . ntToaa . noNs . cutSequence
+        transformGermline  = includeLength
+                           . ntToaa
+                           . removeUnknown
+                           . trim
+                           . noNs
+                           . cutSequence
         -- Specifically for CLIP fasta files
         transformOrderCLIP = getFrequentMutations
                            . getMutations
