@@ -79,11 +79,35 @@ getRegionSequence start0 stop fs = fs { fastaSeq = newFastaSeq }
     newFastaSeq = getRegion start stop . fastaSeq $ fs
     start       = fmap (flip (-) 1) start0
 
--- | Trim off extra nucleotides from a fasta sequence
-trimFasta :: FastaSequence -> FastaSequence
-trimFasta fs = fs { fastaSeq = trim . fastaSeq $ fs }
-  where
-    trim x = T.dropEnd (T.length x `mod` 3) x
+-- | Trim the sequence. For default, trim the extra nucleotides off the
+-- end. Otherwise, use UCSC frames (0, 1, 2) to cut off the beginning (0
+-- means in frame) or the end (0 means the nucleotide AFTER the end of the
+-- sequence is in frame). For amino acids, if it's not in frame, just cut
+-- that amino acid.
+trim :: GeneticUnit -> Maybe FrameType -> Maybe Frame -> T.Text -> T.Text
+trim Nucleotide Nothing Nothing x              = T.dropEnd
+                                                 (T.length x `mod` 3)
+                                                 x
+trim _ _ Nothing x                             = x
+trim _ _ (Just 0) x                            = x
+trim Nucleotide (Just InFrame) (Just frame) x  = T.drop (3 - frame) x
+trim Nucleotide (Just OutFrame) (Just frame) x = T.dropEnd frame x
+trim AminoAcid (Just InFrame) (Just _) x       = T.drop 1 x
+trim AminoAcid (Just OutFrame) (Just _) x      = T.dropEnd 1 x
+
+-- | Trim off extra nucleotides (or amino acids) from a fasta sequence. If
+-- inframe and outframe are specified, instead cut off based on those frames.
+trimFasta :: GeneticUnit
+          -> Maybe Frame
+          -> Maybe Frame
+          -> FastaSequence
+          -> FastaSequence
+trimFasta Nucleotide Nothing Nothing fs =
+    fs { fastaSeq = trim Nucleotide Nothing Nothing . fastaSeq $ fs }
+trimFasta genU inF outF fs = fs { fastaSeq = trim genU (Just InFrame) inF
+                                           . trim genU (Just OutFrame) outF
+                                           . fastaSeq $ fs
+                                }
 
 -- | Convert non standard nucleotides to gaps
 removeUnknownNucs :: FastaSequence -> FastaSequence

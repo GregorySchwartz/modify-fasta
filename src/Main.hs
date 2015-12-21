@@ -53,6 +53,8 @@ data Options = Options { input                    :: String
                        , removeDuplicatesFlag     :: Bool
                        , removeOutOfFrameFlag     :: Bool
                        , removeUnknownNuc         :: Bool
+                       , inputInFrame             :: Maybe Field
+                       , inputOutFrame            :: Maybe Field
                        , trimFrame                :: Bool
                        , inputStopRange           :: Int
                        , inputCodonMut            :: CodonMut
@@ -150,7 +152,7 @@ options = Options
           ( long "add-length"
          <> short 'l'
          <> help "Whether to append the length of the sequence to the end of\
-                 \ the header, calculated after convert-to-amin-acids\
+                 \ the header, calculated after --convert-to-amino-acids\
                  \ if enabled" )
       <*> switch
           ( long "remove-N"
@@ -182,11 +184,28 @@ options = Options
           ( long "remove-unknown-nucleotides"
          <> short 'Y'
          <> help "Convert unknown nucleotides (not ACGTN-.) to gaps (-)" )
+      <*> optional ( option auto
+          ( long "input-inframe"
+         <> metavar "[ ] | FIELD"
+         <> help "Represents the 1 indexed field split by '|'\
+                 \ containing the inframe\
+                 \ value (frames are 0, 1, or 2 like\
+                 \ USCS definitions). For use with trim-frame." )
+        )
+      <*> optional ( option auto
+          ( long "input-outframe"
+         <> metavar "[ ] | FIELD"
+         <> help "Represents the 1 indexed field split by '|'\
+                 \ containing the outframe\
+                 \ value (frames are 0, 1, or 2 like\
+                 \ USCS definitions). For use with trim-frame." )
+        )
       <*> switch
           ( long "trim-frame"
          <> short 'y'
          <> help "Trim each sequence to be in frame by remove extra nucleotides\
-                 \ at the end" )
+                 \ at the end. If input-inframe or input-outframe is\
+                 \ specified, follow those rules instead." )
       <*> option auto
           ( long "input-stop-range"
          <> short 'r'
@@ -276,6 +295,7 @@ options = Options
          <> value ""
          <> help "The output fasta file" )
 
+-- | Parse the argument fieldInt
 fieldIntParser :: String -> [(Maybe Int, T.Text)]
 fieldIntParser "" = []
 fieldIntParser s  = map (\x -> (first x, second x)) . Split.splitOn "&&" $ s
@@ -286,6 +306,7 @@ fieldIntParser s  = map (\x -> (first x, second x)) . Split.splitOn "&&" $ s
             Just (read (tail . head . Split.splitOn "," $ x) :: Int)
     second = T.pack . init . dropWhile (== ' ') . last . Split.splitOn ","
 
+-- | Check for amino acid
 isAminoAcid :: GeneticUnit -> Bool
 isAminoAcid AminoAcid = True
 isAminoAcid _         = False
@@ -315,7 +336,10 @@ modifyFastaList opts = do
         -- Start filtering out sequences
         -- Include only custom filter sequences
         customFilter x = null customFilters
-                      || hasAllCustomFilters (customRemoveFlag opts) customFilters x
+                      || hasAllCustomFilters
+                         (customRemoveFlag opts)
+                         customFilters
+                         x
 
         -- Remove clones with stops in the range
         noStops x = not (removeStopsFlag opts) || hasNoStops genUnit stopRange x
@@ -341,9 +365,14 @@ modifyFastaList opts = do
                             else id
 
         -- Trim sequence
-        trim = if trimFrame opts
-                    then trimFasta
-                    else id
+        trim fs =
+            if trimFrame opts
+                then trimFasta
+                    genUnit
+                    ((read . T.unpack . flip getField fs) <$> inputInFrame opts)
+                    ((read . T.unpack . flip getField fs) <$> inputOutFrame opts)
+                    fs
+                else fs
 
         -- Fill in bad characters at the requested section with possible
         -- replacements

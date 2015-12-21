@@ -8,6 +8,7 @@
 module Utility ( addLengthHeader
                , addFillerGermlines
                , replaceChars
+               , getField
                ) where
 
 -- Built-in
@@ -58,3 +59,7 @@ replaceChars c = zipWithRetainText changeChar
     changeChar a b = if a == c && (not . T.isInfixOf (T.singleton b)) ".-"
                         then b
                         else a
+
+-- | Get the field of a fasta sequence, 1 indexed split by "|"
+getField :: Int -> FastaSequence -> T.Text
+getField f fs = (T.splitOn "|" . fastaHeader $ fs) !! (f - 1)

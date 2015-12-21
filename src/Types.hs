@@ -14,6 +14,7 @@ import Data.Fasta.Text.Types
 
 -- Algebraic
 data GeneticUnit   = AminoAcid | Nucleotide deriving (Read, Show)
+data FrameType     = InFrame | OutFrame deriving (Read, Show)
 
 -- Basic
 type ID       = Int
@@ -23,6 +24,7 @@ type Field    = Int
 type Start    = Int
 type Stop     = Int
 type Position = Int
+type Frame    = Int
 
 -- Advanced
 type CloneEntry     = (Germline, [FastaSequence])
