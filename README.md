@@ -8,7 +8,7 @@ as specified by the user, and return the new fasta file.
 
 ## Installation
 ```
-stack install --resolver nightly
+stack install
 ```
 
 ## Examples
