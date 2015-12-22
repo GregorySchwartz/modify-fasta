@@ -228,14 +228,16 @@ options = Options
          <> value "="
          <> help "Only include codons with this many mutations (=)\
                  \ (or lesser (<) or greater (>), depending on\
-                 \ input-codon-mut). Converts the unincluded codon to gaps." )
+                 \ input-codon-mut). Converts the unincluded codon to gaps.\
+                 \ For use with input-codon-mut." )
       <*> strOption
           ( long "input-mut-type"
          <> short 'M'
          <> metavar "[All]|Silent|Replacement"
          <> value "All"
-         <> help "Only include codons with this all mutations (All),\
-                 \ (or silent (Silent) or replacement (Replacement))." )
+         <> help "Only include codons with all mutations (All),\
+                 \ (or silent (Silent) or replacement (Replacement)).\
+                 \ For use with input-codon-mut." )
       <*> strOption
           ( long "input-change-field"
          <> short 'e'

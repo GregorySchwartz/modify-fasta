@@ -31,6 +31,18 @@ To only return `MOUSE` entries (where the entry header looks like
 `cat input.fasta | modify-fasta -u AminoAcid --input-custom-filter "(4,
 ^MOUSE$)" | modify-fasta -u AminoAcid --stop 20 > output.fasta`
 
+To use the mutation based arguments, make sure that the fasta file is in CLIP
+format:
+
+`>>Germline1\ngermlinesequence\n>Somatic1\nsomaticsequence\n>Somatic2\nsomaticsequence\n>>Germline2\ngermlinesequence\n
+etc.`
+
+To only include codons with over 0 silent mutations (replacement mutation
+containing codons would be replaced with `---`):
+
+`cat input_clip.fasta | modify-fasta -u Nucleotide --clip-fasta --input-mut-type
+"Silent" --input-codon-mut 0 --input-codon-mut-type ">"`
+
 ## Usage
 
 ```
