@@ -35,7 +35,7 @@ import Print
 
 -- Command line arguments
 data Options = Options { input                    :: String
-                       , aminoAcidsFlag           :: String
+                       , aminoAcidsFlag           :: GeneticUnit
                        , legacyFlag               :: Bool
                        , clipFastaFlag            :: Bool
                        , convertToAminoAcidsFlag  :: Bool
@@ -78,10 +78,10 @@ options = Options
          <> metavar "FILE"
          <> value ""
          <> help "The input fasta file or CLIP fasta file" )
-      <*> strOption
+      <*> option auto
           ( long "unit"
          <> short 'u'
-         <> metavar "AminoAcid|Nucleotide"
+         <> metavar "AminoAcid | Nucleotide"
          <> help "Whether these sequences are composed of\
                  \ amino acids (AminoAcid) or nucleotides (Nucleotide)" )
       <*> switch
@@ -321,7 +321,7 @@ modifyFastaList opts = do
     hOut <- if null . output $ opts
                 then return IO.stdout
                 else IO.openFile (output opts) IO.WriteMode
-    let genUnit        = read . aminoAcidsFlag $ opts
+    let genUnit        = aminoAcidsFlag opts
         stopRange      = inputStopRange opts
         customFilters  = fieldIntParser . inputCustomFilter $ opts
         changeFields   = fieldIntParser . inputChangeField $ opts
@@ -484,7 +484,7 @@ modifyFastaCloneMap opts = do
                     then T.getContents
                     else T.readFile . input $ opts
     -- No redundant newlines in sequence
-    let genUnit               = read . aminoAcidsFlag $ opts
+    let genUnit               = aminoAcidsFlag opts
         stopRange             = inputStopRange opts
         codonMut              = inputCodonMut opts
         codonMutType          = T.pack . inputCodonMutType $ opts
