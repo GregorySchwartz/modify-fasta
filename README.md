@@ -23,7 +23,7 @@ output.fasta`
 
 To trim trailing nucleotides:
 
-`cat input.fasta | modify-fasta -u Nucleotides --trim > output.fasta`
+`cat input.fasta | modify-fasta -u Nucleotides --trim-frame > output.fasta`
 
 To only return `MOUSE` entries (where the entry header looks like
 "acc15|inframe|3|MOUSE|False") and cut off the amino acids after position 20:
