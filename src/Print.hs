@@ -20,7 +20,7 @@ import TextShow
 -- Local
 import Types
 
--- Return the results of the filtration in text form for saving
+-- | Return the results of the filtration in text form for saving
 -- to a file
 printFasta :: CloneMap -> T.Text
 printFasta = body
@@ -37,7 +37,7 @@ printFasta = body
                                   , z
                                   ]
 
--- Return the results of the filtration in text form for saving
+-- | Return the results of the filtration in text form for saving
 -- to a file and excluding germline
 printFastaNoGermline :: CloneMap -> T.Text
 printFastaNoGermline = body

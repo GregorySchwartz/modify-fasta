@@ -34,7 +34,7 @@ addFillerGermlines = M.fromList . labelGermlines . map insertDummy
     insertDummy x   = (dummy, [x])
     dummy = FastaSequence {fastaHeader = "filler", fastaSeq = "---"}
 
--- Like zipWith, but if one if one list is longer than the other than use
+-- | Like zipWith, but if one if one list is longer than the other than use
 -- the remaining, needs to be the same type
 zipWithRetain :: (a -> a -> a) -> [a] -> [a] -> [a]
 zipWithRetain _ [] [] = []
@@ -42,7 +42,7 @@ zipWithRetain _ xs [] = xs
 zipWithRetain _ [] ys = ys
 zipWithRetain f (x:xs) (y:ys) = f x y : zipWithRetain f xs ys
 
--- Like zipWithRetain, but for text
+-- | Like zipWithRetain, but for text
 zipWithRetainText :: (Char -> Char -> Char) -> T.Text -> T.Text -> T.Text
 zipWithRetainText _ (T.uncons -> Nothing) (T.uncons -> Nothing) = T.empty
 zipWithRetainText _ xs (T.uncons -> Nothing) = xs
@@ -50,7 +50,7 @@ zipWithRetainText _ (T.uncons -> Nothing) ys = ys
 zipWithRetainText f (T.uncons -> Just (x, xs)) (T.uncons -> Just (y, ys))
     = f x y `T.cons` zipWithRetainText f xs ys
 
--- Replace characters in the first string with another in the second string
+-- | Replace characters in the first string with another in the second string
 -- if they are equal to a certain character and they aren't replaced with
 -- a gap.
 replaceChars :: Char -> T.Text -> T.Text -> T.Text

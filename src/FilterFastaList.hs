@@ -24,7 +24,7 @@ import Data.Fasta.Text
 -- Local
 import Types
 
--- Remove clone sequences that have stop codons in the first stopRange
+-- | Remove clone sequences that have stop codons in the first stopRange
 -- codons
 hasNoStops :: GeneticUnit
            -> Int
@@ -41,7 +41,7 @@ hasNoStops genUnit stopRange = result . stop genUnit
                     . translate 1
     stop AminoAcid = Right . not . T.isInfixOf "*" . T.take stopRange . fastaSeq
 
--- Remove out of frame sequences
+-- | Remove out of frame sequences
 isInFrame :: FastaSequence -> Bool
 isInFrame = (== 0)
           . mod 3
@@ -49,7 +49,7 @@ isInFrame = (== 0)
           . T.filter (\x -> not . T.isInfixOf (T.singleton x) $ ".-")
           . fastaSeq
 
--- Remove sequences that do not contain the string customFilter in the
+-- | Remove sequences that do not contain the string customFilter in the
 -- customField location, split by "|". Note that this is 1 indexed and
 -- 0 means to search the entire header for the customFilter. If the
 -- customRemove option is enabled, this function will instead remove

@@ -31,7 +31,7 @@ import Diversity
 noGaps :: T.Text -> Bool
 noGaps = not . any (\x -> x == '.' || x == '-') . T.unpack
 
--- Replace codons that have more than CodonMut mutations (make them "---"
+-- | Replace codons that have more than CodonMut mutations (make them "---"
 -- codons) and don't have gaps in them.
 onlyMutations :: CodonMut -> T.Text -> T.Text -> CloneEntry -> CloneEntry
 onlyMutations codonMut codonMutType mutType = newEntry
@@ -61,7 +61,7 @@ onlyMutations codonMut codonMutType mutType = newEntry
     isMutType "ALL" _ _         = True
     isMutType _ _ _             = error "Unknown mutation type"
 
--- Only include codons containing mutations found in a certain number of
+-- | Only include codons containing mutations found in a certain number of
 -- mutants
 frequentMutations :: Maybe Int
                   -> Maybe Int

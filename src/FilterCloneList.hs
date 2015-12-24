@@ -22,7 +22,7 @@ import Data.Fasta.Text
 -- Local
 import Types
 
--- Remove highly mutated sequences (sequences with more than a third of
+-- | Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
 filterHighlyMutatedEntry :: GeneticUnit -> CloneEntry -> CloneEntry
 filterHighlyMutatedEntry !genUnit = newEntry

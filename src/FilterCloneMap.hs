@@ -25,17 +25,17 @@ import Data.Fasta.Text
 import Types
 import Diversity
 
--- Check if the data structure is Right
+-- | Check if the data structure is Right
 isRight' :: Either a b -> Bool
 isRight' (Right _)       = True
 isRight' _               = False
 
--- Altered version of listToMaybe
+-- | Altered version of listToMaybe
 listToMaybe' :: [a] -> Maybe [a]
 listToMaybe' []      = Nothing
 listToMaybe' x       = Just x
 
--- Remove highly mutated sequences (sequences with more than a third of
+-- | Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
 filterHighlyMutated :: GeneticUnit -> CloneMap -> (CloneMap, Maybe String)
 filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
@@ -86,7 +86,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
     readSeq Nucleotide x = Right x
     readSeq AminoAcid x  = translate 1 x
 
--- Replace codons that have more than CodonMut mutations (make them "---"
+-- | Replace codons that have more than CodonMut mutations (make them "---"
 -- codons).
 removeCodonMutCount :: CodonMut -> T.Text -> T.Text -> CloneMap -> CloneMap
 removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
@@ -112,7 +112,7 @@ removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
     isMutType "SILENT" x y      = codon2aa x == codon2aa y
     isMutType _ _ _             = True
 
--- Remove clone sequences that have stop codons in the first stopRange
+-- | Remove clone sequences that have stop codons in the first stopRange
 -- codons
 removeStopsCloneMap :: GeneticUnit
                     -> Int
@@ -148,7 +148,7 @@ removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
     fromEither (Right x)     = x
     fromEither (Left x)      = error (T.unpack x)
 
--- Remove duplicate sequences
+-- | Remove duplicate sequences
 removeDuplicatesCloneMap :: CloneMap -> CloneMap
 removeDuplicatesCloneMap cloneMap = M.map
                                     (filter (`S.member` duplicateSet))
@@ -160,7 +160,7 @@ removeDuplicatesCloneMap cloneMap = M.map
                  . M.toAscList
                  $ cloneMap
 
--- Remove out of frame sequences
+-- | Remove out of frame sequences
 removeOutOfFrameSeqs :: CloneMap -> CloneMap
 removeOutOfFrameSeqs = M.map (filter isInFrame)
   where
@@ -170,7 +170,7 @@ removeOutOfFrameSeqs = M.map (filter isInFrame)
                . T.filter (\x -> not $ T.isInfixOf (T.singleton x) ".-")
                . fastaSeq
 
--- Remove sequences that do not contain the string customFilter in the
+-- | Remove sequences that do not contain the string customFilter in the
 -- customField location, split by "|". Note that this is 1 indexed and
 -- 0 means to search the entire header for the customFilter. If the
 -- customRemove option is enabled, this function will instead remove
@@ -210,11 +210,11 @@ removeAllCustomFilters germ rm = foldl' filterMap
   where
     filterMap acc (x, y) = removeCustomFilter germ rm x y acc
 
--- Remove clones that do not have any sequences after the filtrations
+-- | Remove clones that do not have any sequences after the filtrations
 removeEmptyClone :: CloneMap -> CloneMap
 removeEmptyClone = M.filter (not . null)
 
--- Convert sequences to amino acids
+-- | Convert sequences to amino acids
 convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, Maybe String)
 convertToAminoAcidsCloneMap cloneMap = (newCloneMap, errorString)
   where
