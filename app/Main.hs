@@ -39,6 +39,7 @@ data Options = Options { input                    :: String
                        , legacyFlag               :: Bool
                        , clipFastaFlag            :: Bool
                        , convertToAminoAcidsFlag  :: Bool
+                       , inputCodonTable          :: CodonTable
                        , inputFillIn              :: FillInValue
                        , inputStart               :: Maybe Int
                        , inputStop                :: Maybe Int
@@ -103,6 +104,15 @@ options = Options
          <> help "Whether to convert the filtered sequences to amino acids\
                  \ in the output. Applied last, even after add length." )
       <*> option auto
+          ( long "codon-table"
+         <> metavar "[(CODON, AA)]"
+         <> value []
+         <> help "The codon table used for converting to amino acids. This\
+                 \ is a list of codon AA pairs, so for example:\
+                 \ [(\"AAT\", '@'), (\"ATC\", '#')] for AATATCGGG would result\
+                 \ in @#G as defaults are used if the codon is not in\
+                 \ the custom table." )
+      <*> option auto
           ( long "fill-in"
          <> short 'F'
          <> metavar "(FIELD, START, 'CHARACTER')"
@@ -166,11 +176,13 @@ options = Options
           ( long "remove-highly-mutated"
          <> short 'h'
          <> help "Whether to remove highly mutated clone sequences (a third\
-                 \ of their sequence are different amino acids)." )
+                 \ of their sequence are different amino acids). Optionally\
+                 \ uses codon-table." )
       <*> switch
           ( long "remove-stops"
          <> short 's'
-         <> help "Whether to remove sequences with stop codons" )
+         <> help "Whether to remove sequences with stop codons. Optionally\
+                 \ uses codon-table. " )
       <*> switch
           ( long "legacy-remove-duplicates"
          <> short 'd'
@@ -344,7 +356,8 @@ modifyFastaList opts = do
                          x
 
         -- Remove clones with stops in the range
-        noStops x = not (removeStopsFlag opts) || hasNoStops genUnit stopRange x
+        noStops x = not (removeStopsFlag opts)
+                 || hasNoStops genUnit (inputCodonTable opts) stopRange x
 
         -- Remove Ns from fasta list
         noNs = if removeTheNsFlag opts && (not . isAminoAcid $ genUnit)
@@ -384,7 +397,7 @@ modifyFastaList opts = do
 
         -- Convert to amino acids
         ntToaa = if convertToAminoAcidsFlag opts
-                    then convertToAminoAcidsFastaSequence
+                    then convertToAminoAcidsFastaSequence (inputCodonTable opts)
                     else id
 
         -- Include sequence length in header at the end
@@ -396,7 +409,9 @@ modifyFastaList opts = do
 
         -- Remove highly mutated sequences
         removeHighMutations = if removeHighlyMutatedFlag opts
-                                then filterHighlyMutatedEntry genUnit
+                                then filterHighlyMutatedEntry
+                                     genUnit
+                                     (inputCodonTable opts)
                                 else id
 
         -- Extract mutations to a certain degree
@@ -528,6 +543,7 @@ modifyFastaCloneMap opts = do
         (cloneMapNoStops, errorString) = if removeStopsFlag opts
                                             then removeStopsCloneMap
                                                  genUnit
+                                                 (inputCodonTable opts)
                                                  stopRange
                                                  cloneMapCustom
                                             else (cloneMapCustom, Nothing)
@@ -549,6 +565,7 @@ modifyFastaCloneMap opts = do
                                                  $ genUnit )
                                                  then filterHighlyMutated
                                                       genUnit
+                                                      (inputCodonTable opts)
                                                       cloneMapNoDuplicates
                                                  else ( cloneMapNoDuplicates
                                                       , Nothing )
@@ -572,6 +589,7 @@ modifyFastaCloneMap opts = do
         (cloneMapAA, errorString3) = if (convertToAminoAcidsFlag opts)
                                      && (not . isAminoAcid $ genUnit)
                                       then convertToAminoAcidsCloneMap
+                                           (inputCodonTable opts)
                                            cloneMapNoEmptyClones
                                       else (cloneMapNoEmptyClones, Nothing)
 

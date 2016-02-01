@@ -37,8 +37,11 @@ listToMaybe' x       = Just x
 
 -- | Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
-filterHighlyMutated :: GeneticUnit -> CloneMap -> (CloneMap, Maybe String)
-filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
+filterHighlyMutated :: GeneticUnit
+                    -> CodonTable
+                    -> CloneMap
+                    -> (CloneMap, Maybe String)
+filterHighlyMutated !genUnit !table !cloneMap = (newCloneMap, errorString)
   where
     newCloneMap           = M.map (map snd . filter (not . fst) . rights)
                             errorCloneMap
@@ -84,7 +87,7 @@ filterHighlyMutated !genUnit !cloneMap = (newCloneMap, errorString)
         | otherwise        = False
     mutation x y        = zip [1..] . T.zip x $ y
     readSeq Nucleotide x = Right x
-    readSeq AminoAcid x  = translate 1 x
+    readSeq AminoAcid x  = customTranslate table 1 x
 
 -- | Replace codons that have more than CodonMut mutations (make them "---"
 -- codons).
@@ -115,11 +118,12 @@ removeCodonMutCount codonMut codonMutType mutType = M.mapWithKey mapRemove
 -- | Remove clone sequences that have stop codons in the first stopRange
 -- codons
 removeStopsCloneMap :: GeneticUnit
+                    -> CodonTable
                     -> Int
                     -> CloneMap
                     -> (CloneMap, Maybe String)
-removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
-                                                    , errorString )
+removeStopsCloneMap !genUnit !table !stopRange !cloneMap = ( newCloneMap
+                                                           , errorString )
   where
     errorString = listToMaybe'
                 . unlines
@@ -129,17 +133,17 @@ removeStopsCloneMap !genUnit !stopRange !cloneMap = ( newCloneMap
                 . M.map ( intercalate "\n"
                         . map T.unpack
                         . lefts
-                        . map (translate 1)
+                        . map (customTranslate table 1)
                         )
                 $ cloneMap
     newCloneMap = M.map (filter (filterStops genUnit)) cloneMap
-    filterStops Nucleotide x = (isRight' . translate 1 $ x)
+    filterStops Nucleotide x = (isRight' . customTranslate table 1 $ x)
                             && ( not
                                . T.isInfixOf "*"
                                . T.take stopRange
                                . fastaSeq
                                . fromEither
-                               . translate 1 ) x
+                               . customTranslate table 1 ) x
     filterStops AminoAcid  x = not
                              . T.isInfixOf "*"
                              . T.take stopRange
@@ -215,8 +219,10 @@ removeEmptyClone :: CloneMap -> CloneMap
 removeEmptyClone = M.filter (not . null)
 
 -- | Convert sequences to amino acids
-convertToAminoAcidsCloneMap :: CloneMap -> (CloneMap, Maybe String)
-convertToAminoAcidsCloneMap cloneMap = (newCloneMap, errorString)
+convertToAminoAcidsCloneMap :: CodonTable
+                            -> CloneMap
+                            -> (CloneMap, Maybe String)
+convertToAminoAcidsCloneMap table cloneMap = (newCloneMap, errorString)
   where
     newCloneMap   = M.mapKeysWith (++) (\(!x, !y) -> (x, fromEither y))
                   . M.filterWithKey (\(_, !y) _ -> isRight' y)
@@ -231,9 +237,9 @@ convertToAminoAcidsCloneMap cloneMap = (newCloneMap, errorString)
                                              $ v )
                   $ errorCloneMap
     errorCloneMap = M.mapKeys keyMap
-                  . M.map (map (translate 1))
+                  . M.map (map (customTranslate table 1))
                   $ cloneMap
-    keyMap (!x, !y) = (x, translate 1 y)
+    keyMap (!x, !y) = (x, customTranslate table 1 y)
     eitherToString (Right _) = ""
     eitherToString (Left x)  = T.unpack x
     fromEither (Right x)     = x

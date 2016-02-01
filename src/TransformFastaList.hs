@@ -32,8 +32,10 @@ import Types
 import Utility
 
 -- | Convert sequences to amino acids
-convertToAminoAcidsFastaSequence :: FastaSequence -> FastaSequence
-convertToAminoAcidsFastaSequence = fromEither . translate 1
+convertToAminoAcidsFastaSequence :: CodonTable
+                                 -> FastaSequence
+                                 -> FastaSequence
+convertToAminoAcidsFastaSequence table = fromEither . customTranslate table 1
   where
     fromEither (Right x)     = x
     fromEither (Left x)      = error . T.unpack $ x

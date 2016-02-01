@@ -24,8 +24,11 @@ import Types
 
 -- | Remove highly mutated sequences (sequences with more than a third of
 -- their sequence being mutated).
-filterHighlyMutatedEntry :: GeneticUnit -> CloneEntry -> CloneEntry
-filterHighlyMutatedEntry !genUnit = newEntry
+filterHighlyMutatedEntry :: GeneticUnit
+                         -> CodonTable
+                         -> CloneEntry
+                         -> CloneEntry
+filterHighlyMutatedEntry !genUnit !table = newEntry
   where
     newEntry (!germline, !fseqs) = ( germline
                                    , map snd
@@ -68,4 +71,4 @@ filterHighlyMutatedEntry !genUnit = newEntry
         | otherwise        = False
     mutation x y        = zip [1..] . T.zip x $ y
     readSeq Nucleotide x = Right x
-    readSeq AminoAcid x  = translate 1 x
+    readSeq AminoAcid x  = customTranslate table 1 x

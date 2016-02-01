@@ -27,18 +27,19 @@ import Types
 -- | Remove clone sequences that have stop codons in the first stopRange
 -- codons
 hasNoStops :: GeneticUnit
+           -> CodonTable
            -> Int
            -> FastaSequence
            -> Bool
-hasNoStops genUnit stopRange = result . stop genUnit
+hasNoStops genUnit table stopRange = result . stop genUnit
   where
     result (Right x) = x
     result (Left x)  = error . T.unpack $ x
-    stop Nucleotide = fmap ( not
-                           . T.isInfixOf "*"
-                           . T.take stopRange
-                           . fastaSeq )
-                    . translate 1
+    stop Nucleotide  = fmap ( not
+                            . T.isInfixOf "*"
+                            . T.take stopRange
+                            . fastaSeq )
+                     . customTranslate table 1
     stop AminoAcid = Right . not . T.isInfixOf "*" . T.take stopRange . fastaSeq
 
 -- | Remove out of frame sequences

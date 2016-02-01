@@ -29,6 +29,7 @@ type Frame    = Int
 -- Advanced
 type CloneEntry     = (Germline, [FastaSequence])
 type FillInValue    = (Field, Start, Char)
+type CodonTable     = [(T.Text, Char)]
 type Mutation       = (Char, Char)
 type CountMap       = Map.Map (Position, Mutation) Int
 type CodonMutations = [[(Position, Mutation)]]
