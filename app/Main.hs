@@ -181,8 +181,8 @@ options = Options
       <*> switch
           ( long "remove-stops"
          <> short 's'
-         <> help "Whether to remove sequences with stop codons. Optionally\
-                 \ uses codon-table. " )
+         <> help "Whether to remove sequences with stop codons (\"*\").\
+                 \ Optionally uses codon-table." )
       <*> switch
           ( long "legacy-remove-duplicates"
          <> short 'd'
