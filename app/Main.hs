@@ -490,6 +490,7 @@ modifyFastaList opts = do
                     >-> PT.toHandle hOut
 
     -- Finish up by closing file if written
+    unless (null . input $ opts) (IO.hClose hIn)
     unless (null . output $ opts) (IO.hClose hOut)
 
 -- Legacy function
