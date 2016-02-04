@@ -489,9 +489,8 @@ modifyFastaList opts = do
                          >> yield (T.pack "\n") )  -- want that newline at the end
                     >-> PT.toHandle hOut
 
-    -- Finish up by closing handles just in case
-    IO.hClose hIn
-    IO.hClose hOut
+    -- Finish up by closing file if written
+    unless (null . output $ opts) (IO.hClose hOut)
 
 -- Legacy function
 modifyFastaCloneMap :: Options -> IO ()
