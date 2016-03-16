@@ -9,7 +9,6 @@
 import Data.Maybe
 import qualified Data.Map as M
 import qualified System.IO as IO
-import qualified Data.Text.IO as IO
 import Control.Monad
 
 -- Cabal
