@@ -36,9 +36,6 @@ convertToAminoAcidsFastaSequence :: CodonTable
                                  -> FastaSequence
                                  -> FastaSequence
 convertToAminoAcidsFastaSequence table = fromEither . customTranslate table 1
-  where
-    fromEither (Right x)     = x
-    fromEither (Left x)      = error . T.unpack $ x
 
 -- | Fill in the sequence with corrected nucleotides or amino acids
 fillInSequence :: Field -> Start -> Char -> FastaSequence -> FastaSequence

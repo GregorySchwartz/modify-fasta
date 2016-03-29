@@ -56,6 +56,8 @@ data Options = Options { input                    :: String
                        , inputInFrame             :: Maybe Field
                        , inputOutFrame            :: Maybe Field
                        , trimFrame                :: Bool
+                       , trackMutations           :: Maybe Field
+                       , translateTrackMutations  :: Bool
                        , inputStopRange           :: Int
                        , inputCodonMut            :: CodonMut
                        , inputCodonMutType        :: String
@@ -217,6 +219,17 @@ options = Options
          <> help "Trim each sequence to be in frame by remove extra nucleotides\
                  \ at the end. If input-inframe or input-outframe is\
                  \ specified, follow those rules instead." )
+      <*> optional ( option auto
+          ( long "track-mutations"
+         <> metavar "[ ] | FIELD"
+         <> help "Represents the 1 indexed field split by '|'\
+                 \ containing the sequence to compare to. Takes the differences\
+                 \ from the two sequences and puts them in the header." )
+        )
+      <*> switch
+          ( long "translate-track-mutations"
+         <> help "Whether to translate the field in track-mutations before\
+                 \ finding differences." )
       <*> option auto
           ( long "input-stop-range"
          <> short 'r'
@@ -388,6 +401,13 @@ modifyFastaList opts = do
                     fs
                 else fs
 
+        -- Put mutations in the header
+        includeMutations fs =
+            case trackMutations opts of
+                Nothing  -> fs
+                (Just x) -> 
+                    addMutationsHeader (translateTrackMutations opts) x fs
+
         -- Fill in bad characters at the requested section with possible
         -- replacements
         fillIn = case inputFillIn opts of
@@ -430,6 +450,7 @@ modifyFastaList opts = do
         -- Final order
         filterOrder x      = seqInFrame x && customFilter x && noStops x
         transformOrder     = includeLength
+                           . includeMutations
                            . ntToaa
                            . changeHeader
                            . removeUnknown
@@ -441,6 +462,7 @@ modifyFastaList opts = do
         -- fill in the germline because that would make no sense in this
         -- case
         transformGermline  = includeLength
+                           . includeMutations
                            . ntToaa
                            . removeUnknown
                            . trim

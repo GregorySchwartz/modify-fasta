@@ -3,28 +3,69 @@
 --
 -- Collects utility functions for the main files
 
-{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
+{-# LANGUAGE BangPatterns, OverloadedStrings, ViewPatterns #-}
 
 module Utility ( addLengthHeader
+               , addMutationsHeader
                , addFillerGermlines
                , replaceChars
                , getField
+               , fromEither
                ) where
 
 -- Built-in
 import qualified Data.Map as M
-import qualified Data.Text as T
+import Data.Monoid
 
 -- Cabal
+import qualified Data.Text as T
 import Data.Fasta.Text
 import TextShow
+
+-- Local
+import Types
 
 -- | Adds the length of a sequence to the header of that sequence
 addLengthHeader :: FastaSequence -> FastaSequence
 addLengthHeader fSeq = fSeq { fastaHeader = fastaHeader fSeq
-                                  `mappend` "|"
-                                  `mappend` (showt . T.length . fastaSeq $ fSeq)
+                                         <> "|"
+                                         <> (showt . T.length . fastaSeq $ fSeq)
                             }
+
+-- | Adds the mutations of a sequence to the header of that sequence
+addMutationsHeader :: Bool -> Field -> FastaSequence -> FastaSequence
+addMutationsHeader aaFlag field fSeq =
+    fSeq { fastaHeader = fastaHeader fSeq
+                      <> "|"
+                      <> ( printMutations
+                         . getMutations (fastaSeq germline)
+                         . fastaSeq
+                         $ fSeq
+                         )
+         }
+  where
+    germline = if aaFlag then fromEither (translate 1 otherSeq) else otherSeq
+    otherSeq = FastaSequence {fastaHeader = "", fastaSeq = getField field fSeq}
+
+-- | Print the mutations
+printMutations :: [(Position, (Char, Char))] -> T.Text
+printMutations = T.intercalate "/"
+               . map (\(!p, (!x, !y)) -> showt p <> T.pack ['-', x, '-', y])
+
+-- | Filter for the true mutations
+getMutations :: T.Text -> T.Text -> [(Position, (Char, Char))]
+getMutations xs = filter (\x -> isDiff x && noGaps x) . getDiff xs
+  where
+    isDiff (_, (!x, !y)) = x /= y
+    noGaps (_, !x)       = not . any (flip inTuple x) $ ("-.~" :: String)
+
+-- | Returns the difference between two texts
+getDiff :: T.Text -> T.Text -> [(Position, (Char, Char))]
+getDiff xs = zip [1..] . T.zip xs
+
+-- | Sees if an element is in a tuple
+inTuple :: (Eq a) => a -> (a, a) -> Bool
+inTuple c (!x, !y) = c == x || c == y
 
 -- | Adds filler germlines to normal fasta files
 addFillerGermlines :: [FastaSequence] -> CloneMap
@@ -63,3 +104,8 @@ replaceChars c = zipWithRetainText changeChar
 -- | Get the field of a fasta sequence, 1 indexed split by "|"
 getField :: Int -> FastaSequence -> T.Text
 getField f fs = (T.splitOn "|" . fastaHeader $ fs) !! (f - 1)
+
+-- | Error for left
+fromEither :: Either T.Text b -> b
+fromEither (Right x)     = x
+fromEither (Left x)      = error . T.unpack $ x
