@@ -80,10 +80,8 @@ printSequenceCount clip idx s = body
                    $ geneAlleleList
     alleleMap      = M.fromListWith (+) geneAlleleList
     geneAlleleList = map (countProp clip) . M.toAscList $ s
-    countProp True ((_, x), y)  = (getField idx x, length y)
-    countProp False ((_, _), y) = (getField idx . head $ y, 1)
-    getField f h   = splitHeader h !! (f - 1)
-    splitHeader    = T.splitOn "|" . fastaHeader
+    countProp True ((_, x), y)  = (getField idx '|' x, length y)
+    countProp False ((_, _), y) = (getField idx '|' . head $ y, 1)
 
 -- | Takes a clone entry and returns a formatted text with or without
 -- germline

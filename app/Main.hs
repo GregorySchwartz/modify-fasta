@@ -38,6 +38,8 @@ data Options = Options { input                    :: String
                        , legacyFlag               :: Bool
                        , clipFastaFlag            :: Bool
                        , convertToAminoAcidsFlag  :: Bool
+                       , complementFlag           :: Bool
+                       , reverseComplementFlag    :: Bool
                        , inputCodonTable          :: CodonTable
                        , inputFillIn              :: FillInValue
                        , inputStart               :: Maybe Int
@@ -104,6 +106,14 @@ options = Options
          <> short 'C'
          <> help "Whether to convert the filtered sequences to amino acids\
                  \ in the output. Applied last, even after add length." )
+      <*> switch
+          ( long "complement"
+         <> short 'b'
+         <> help "Whether to find the complement of the sequence." )
+      <*> switch
+          ( long "reverse-complement"
+         <> short 'B'
+         <> help "Whether to to find the reverse complement of the sequence." )
       <*> option auto
           ( long "codon-table"
          <> metavar "[(CODON, AA)]"
@@ -396,8 +406,8 @@ modifyFastaList opts = do
             if trimFrame opts
                 then trimFasta
                     genUnit
-                    ((read . T.unpack . flip getField fs) <$> inputInFrame opts)
-                    ((read . T.unpack . flip getField fs) <$> inputOutFrame opts)
+                    ((\x -> read . T.unpack . getField x '|' $ fs) <$> inputInFrame opts)
+                    ((\x -> read . T.unpack . getField x '|' $ fs) <$> inputOutFrame opts)
                     fs
                 else fs
 
@@ -413,6 +423,16 @@ modifyFastaList opts = do
         fillIn = case inputFillIn opts of
                     (-1, -1, 'X') -> id
                     (f, s, c)     -> fillInSequence f s c
+
+        -- Find the complement
+        complement = if complementFlag opts
+                        then compl
+                        else id
+
+        -- Convert to amino acids
+        reverseComplement = if reverseComplementFlag opts
+                                then revCompl
+                                else id
 
         -- Convert to amino acids
         ntToaa = if convertToAminoAcidsFlag opts
@@ -452,6 +472,8 @@ modifyFastaList opts = do
         transformOrder     = includeLength
                            . includeMutations
                            . ntToaa
+                           . reverseComplement
+                           . complement
                            . changeHeader
                            . removeUnknown
                            . trim
@@ -464,6 +486,8 @@ modifyFastaList opts = do
         transformGermline  = includeLength
                            . includeMutations
                            . ntToaa
+                           . reverseComplement
+                           . complement
                            . removeUnknown
                            . trim
                            . noNs
@@ -660,7 +684,8 @@ main = execParser opts >>= modifyFasta
                  \ Order of transformation goes: seqInFrame -> customFilter\
                  \ -> noStops -> removeHighMutations -> getMutations ->\
                  \ getFrequentMutations -> cutSequence -> fillIn -> noNs\
-                 \ -> changeHeader -> ntToaa -> includeLength,\
+                 \ -> changeHeader -> complement -> reverseComplement ->\
+                 \ ntToaa -> includeLength,\
                  \ so if you require a different\
                  \ order (which can change results dramatically), then do\
                  \ so one at a time through the wonderful world of piping."

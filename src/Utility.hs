@@ -9,7 +9,6 @@ module Utility ( addLengthHeader
                , addMutationsHeader
                , addFillerGermlines
                , replaceChars
-               , getField
                , fromEither
                ) where
 
@@ -45,7 +44,8 @@ addMutationsHeader aaFlag field fSeq =
          }
   where
     germline = if aaFlag then fromEither (translate 1 otherSeq) else otherSeq
-    otherSeq = FastaSequence {fastaHeader = "", fastaSeq = getField field fSeq}
+    otherSeq =
+        FastaSequence { fastaHeader = "", fastaSeq = getField field '|' fSeq }
 
 -- | Print the mutations
 printMutations :: [(Position, (Char, Char))] -> T.Text
@@ -100,10 +100,6 @@ replaceChars c = zipWithRetainText changeChar
     changeChar a b = if a == c && (not . T.isInfixOf (T.singleton b)) ".-"
                         then b
                         else a
-
--- | Get the field of a fasta sequence, 1 indexed split by "|"
-getField :: Int -> FastaSequence -> T.Text
-getField f fs = (T.splitOn "|" . fastaHeader $ fs) !! (f - 1)
 
 -- | Error for left
 fromEither :: Either T.Text b -> b
