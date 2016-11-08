@@ -21,6 +21,7 @@ import qualified Pipes.Prelude as P
 import qualified Pipes.Text as PT
 import qualified Pipes.Text.IO as PT
 import qualified Data.List.Split as Split
+import Data.Semigroup ((<>))
 
 -- Local
 import Types
@@ -275,7 +276,7 @@ options = Options
       <*> strOption
           ( long "input-change-field"
          <> short 'e'
-         <> metavar "((FIELD (Int), VALUE (String))"
+         <> metavar "(FIELD (Int), VALUE (String))"
          <> value ""
          <> help "Change a field to a match, so a regex \"ch.*_\" to field 2\
                  \ of \">abc|brie_cheese_dude\" would result in\
@@ -288,7 +289,7 @@ options = Options
       <*> strOption
           ( long "input-custom-filter"
          <> short 'f'
-         <> metavar "((FIELD (Int), VALUE (String))"
+         <> metavar "(FIELD (Int), VALUE (String))"
          <> value ""
          <> help "A custom filter. Can take a list of format\
                  \ \"(Int, String)&&(Int, String)&& ...\" and so on. The String\
