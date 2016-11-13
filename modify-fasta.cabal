@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                modify-fasta
-version:             0.8.2.2
+version:             0.8.2.3
 synopsis:            Modify fasta (and CLIP) files in several optional ways
 -- description:         
 homepage:            https://github.com/GregorySchwartz/modify-fasta
@@ -49,5 +49,6 @@ executable modify-fasta
                      , pipes >= 4.1
                      , pipes-text
                      , optparse-applicative >=0.11
+                     , semigroups
   -- Directories containing source files.
   ghc-options: -O2
