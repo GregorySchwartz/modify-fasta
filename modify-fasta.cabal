@@ -2,14 +2,14 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                modify-fasta
-version:             0.8.2.3
+version:             0.8.2.4
 synopsis:            Modify fasta (and CLIP) files in several optional ways
 -- description:         
 homepage:            https://github.com/GregorySchwartz/modify-fasta
 license:             GPL-3
 license-file:        LICENSE
 author:              GregorySchwartz
-maintainer:          gregory.schwartz@drexel.edu
+maintainer:          gsch@mail.med.upenn.edu
 -- copyright:           
 category:            Bioinformatics
 build-type:          Simple
@@ -48,7 +48,7 @@ executable modify-fasta
                      , fasta
                      , pipes >= 4.1
                      , pipes-text
-                     , optparse-applicative >=0.11
+                     , optparse-applicative >=0.13
                      , semigroups
   -- Directories containing source files.
   ghc-options: -O2
