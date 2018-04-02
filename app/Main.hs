@@ -10,6 +10,7 @@ import Data.Maybe
 import qualified Data.Map as M
 import qualified System.IO as IO
 import Control.Monad
+import Control.Monad.Trans.Maybe
 
 -- Cabal
 import qualified Data.Text as T
@@ -67,8 +68,10 @@ data Options = Options { input                    :: String
                        , inputMutType             :: String
                        , inputChangeField         :: String
                        , inputCustomFilter        :: String
-                       , customGermlineFlag       :: Bool
                        , customRemoveFlag         :: Bool
+                       , customGermlineFlag       :: Bool
+                       , inputInsertionPosition   :: Int
+                       , inputReference           :: Maybe String
                        , inputGeneAlleleField     :: Int
                        , countFlag                :: Bool
                        , output                   :: String
@@ -93,7 +96,7 @@ options = Options
           ( long "legacy"
          <> short 'L'
          <> help "Whether to use the legacy version with no pipes. Note: The\
-                 \ legacy version supports more features but is greedy\
+                 \ legacy version will be unsupported and is greedy\
                  \ in terms of speed and memory. Use only if really needed.\
                  \ Features that are legacy only are noted in this\
                  \ documentation" )
@@ -304,16 +307,32 @@ options = Options
                  \ This list will be filtered one at a time, so you cannot\
                  \ get multiple filters, but you can remove multiple filters." )
       <*> switch
-          ( long "legacy-custom-germline"
-         <> short 'G'
-         <> help "Whether to apply the custom filter to germlines (>>)\
-                 \ instead of sequences (>). LEGACY ONLY" )
-      <*> switch
           ( long "custom-remove"
          <> short 'm'
          <> help "Whether to remove the sequences containing the custom filter\
                  \ as opposed to remove the sequences that don't contain the\
                  \ filter" )
+      <*> switch
+          ( long "legacy-custom-germline"
+         <> short 'G'
+         <> help "Whether to apply the custom filter to germlines (>>)\
+                 \ instead of sequences (>). LEGACY ONLY" )
+      <*> option auto
+          ( long "input-insertion-position"
+         <> metavar "[1]|INT"
+         <> value 1
+         <> help "The field (1 indexed) of the where to insert the sequence\
+                 \ into the reference from --input-insertion-reference.\
+                 \ For instance, with a reference of \"ATT\", a position of 2,\
+                 \ and a sequence of \"GC\", the result will be \"AGCTT\".\
+                 \ Keeps the header of the insertion sequence. Requires\
+                 \ --input-insertion-reference. No legacy." )
+      <*> optional ( strOption
+          ( long "input-reference"
+         <> metavar "FILE"
+         <> help "The file containing a reference sequence.\
+                 \ Only the first sequence is used." )
+          )
       <*> option auto
           ( long "legacy-gene-allele-field"
          <> short 'V'
@@ -356,6 +375,16 @@ modifyFastaList opts = do
     hOut <- if null . output $ opts
                 then return IO.stdout
                 else IO.openFile (output opts) IO.WriteMode
+
+    -- | Get a possible reference sequence.
+    let getRefSeq :: MaybeT IO FastaSequence
+        getRefSeq = do
+            file   <- MaybeT . return $ inputReference opts
+            hInRef <- lift $ IO.openFile file IO.ReadMode
+            MaybeT . runEffect . P.head $ pipesFasta (PT.fromHandle hInRef)
+
+    refSeq <- runMaybeT getRefSeq
+
     let genUnit        = aminoAcidsFlag opts
         stopRange      = inputStopRange opts
         customFilters  = fieldIntParser . inputCustomFilter $ opts
@@ -363,6 +392,7 @@ modifyFastaList opts = do
         codonMut       = inputCodonMut opts
         codonMutType   = T.pack . inputCodonMutType $ opts
         mutType        = T.pack . inputMutType $ opts
+        insertPos      = inputInsertionPosition opts
 
         -- Remove out of frame sequences
         seqInFrame x = not ( removeOutOfFrameFlag opts
@@ -416,7 +446,7 @@ modifyFastaList opts = do
         includeMutations fs =
             case trackMutations opts of
                 Nothing  -> fs
-                (Just x) -> 
+                (Just x) ->
                     addMutationsHeader (translateTrackMutations opts) x fs
 
         -- Fill in bad characters at the requested section with possible
@@ -424,6 +454,15 @@ modifyFastaList opts = do
         fillIn = case inputFillIn opts of
                     (-1, -1, 'X') -> id
                     (f, s, c)     -> fillInSequence f s c
+
+        -- Insert a sequence into a reference sequence.
+        insert fs = case (refSeq, insertPos) of
+                        (Just r, p)  ->
+                            insertSequence
+                                (read . T.unpack . getField p '|' $ fs)
+                                r
+                                fs
+                        _            -> fs
 
         -- Find the complement
         complement = if complementFlag opts
@@ -480,6 +519,7 @@ modifyFastaList opts = do
                            . trim
                            . noNs
                            . fillIn
+                           . insert
                            . cutSequence
         -- Specifically for germlines, as we don't want to change header or
         -- fill in the germline because that would make no sense in this
@@ -684,9 +724,9 @@ main = execParser opts >>= modifyFasta
      <> progDesc "Modify fasta (and CLIP) files in several optional ways.\
                  \ Order of transformation goes: seqInFrame -> customFilter\
                  \ -> noStops -> removeHighMutations -> getMutations ->\
-                 \ getFrequentMutations -> cutSequence -> fillIn -> noNs\
-                 \ -> changeHeader -> complement -> reverseComplement ->\
-                 \ ntToaa -> includeLength,\
+                 \ getFrequentMutations -> cutSequence -> insert -> fillIn\
+                 \ -> noNs -> changeHeader -> complement -> reverseComplement\
+                 \ -> ntToaa -> includeLength,\
                  \ so if you require a different\
                  \ order (which can change results dramatically), then do\
                  \ so one at a time through the wonderful world of piping."

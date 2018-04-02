@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                modify-fasta
-version:             0.8.2.4
+version:             0.8.3.0
 synopsis:            Modify fasta (and CLIP) files in several optional ways
 -- description:         
 homepage:            https://github.com/GregorySchwartz/modify-fasta
@@ -29,12 +29,12 @@ library
                      , Utility
   build-depends:     base >=4.6 && <5
                    , containers >=0.5
-                   , text
-                   , text-show
-                   , split >=0.2
+                   , fasta
                    , regex-tdfa >=1.2
                    , regex-tdfa-text
-                   , fasta
+                   , split >=0.2
+                   , text
+                   , text-show
 
 executable modify-fasta
   hs-source-dirs:      app
@@ -42,13 +42,14 @@ executable modify-fasta
   build-depends:       modify-fasta
                      , base >=4.6 && <5
                      , containers >=0.5
-                     , mtl >=2.1
-                     , text
-                     , split >=0.2
                      , fasta
+                     , mtl >=2.1
+                     , optparse-applicative >=0.13
                      , pipes >= 4.1
                      , pipes-text
-                     , optparse-applicative >=0.13
                      , semigroups
+                     , split >=0.2
+                     , text
+                     , transformers
   -- Directories containing source files.
   ghc-options: -O2

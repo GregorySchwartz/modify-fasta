@@ -8,6 +8,7 @@
 module TransformFastaList ( convertToAminoAcidsFastaSequence
                           , replaceChars
                           , fillInSequence
+                          , insertSequence
                           , changeField
                           , changeAllFields
                           , getRegionSequence
@@ -45,6 +46,14 @@ fillInSequence f s c fs = fs { fastaSeq = newFastaSeq }
                  $ first `mappend` replaceChars c old new
     new          = (T.splitOn "|" . fastaHeader $ fs) !! (f - 1)
     (first, old) = T.splitAt (s - 1) . fastaSeq $ fs
+
+-- | Insert a sequence into a reference.
+insertSequence :: Start -> FastaSequence -> FastaSequence -> FastaSequence
+insertSequence s ref fs = fs { fastaSeq = newFastaSeq }
+  where
+    newFastaSeq  = before `mappend` ins `mappend` after
+    ins          = fastaSeq fs
+    (before, after) = T.splitAt (s - 1) . fastaSeq $ ref
 
 -- | Change a field to a match, so a regex "ch.*_" to field 2 of
 -- ">abc|brie_cheese_dude" would result in ">abc|cheese_". Useful for
@@ -115,4 +124,3 @@ removeUnknownNucs fs = fs { fastaSeq = T.map changeNuc . fastaSeq $ fs }
     changeNuc x
         | toUpper x `elem` ("ATCGN.-" :: String) = x
         | otherwise                              = '-'
-
